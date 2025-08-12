@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:text_to_speech/providers/history_provider.dart';
 import 'screens/splash_screen.dart';
 import 'providers/tts_provider.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => TTSProvider()),
+        ChangeNotifierProvider(create: (_) => HistoryProvider()..load()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

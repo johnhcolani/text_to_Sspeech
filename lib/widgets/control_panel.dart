@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/tts_provider.dart';
+import '../utils/history_actions.dart';
 
 class ControlPanel extends StatelessWidget {
   const ControlPanel({super.key});
@@ -161,6 +162,25 @@ class ControlPanel extends StatelessWidget {
                         ),
                       ),
                     ],
+                    Row(
+                      children: [
+                        FilledButton.icon(
+                          icon: const Icon(Icons.play_arrow),
+                          label: const Text('Play & Save'),
+                          onPressed: () async {
+                            await playAndSaveToHistory(context);
+                            // Optional: jump to History after each play
+                            // if (context.mounted) Navigator.pushNamed(context, '/history');
+                          },
+                        ),
+                        const SizedBox(width: 12),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.history),
+                          label: const Text('History'),
+                          onPressed: () => Navigator.pushNamed(context, '/history'),
+                        ),
+                      ],
+                    )
                   ],
                 ),
               ),

@@ -143,13 +143,14 @@ class VoiceSettingsPanel extends StatelessWidget {
                       child: Column(
                         children: [
                           Slider(
-                            value: ttsProvider.speechRate,
+                            value: context.watch<TTSProvider>().rate,   // was speechRate
                             min: 0.1,
                             max: 1.0,
                             divisions: 9,
-                            label: ttsProvider.speechRate.toStringAsFixed(1),
-                            onChanged: ttsProvider.setSpeechRate,
+                            label: context.watch<TTSProvider>().rate.toStringAsFixed(1),
+                            onChanged: context.read<TTSProvider>().setRate, // was setSpeechRate
                           ),
+
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
