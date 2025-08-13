@@ -20,7 +20,15 @@ class TTSProvider extends ChangeNotifier {
   String _text = '';
   String _fileName = '';
   bool _isLoading = false;
+  int _progressStart = 0;   // current char start (inclusive)
+  int _progressEnd = 0;     // current char end (exclusive)
+  String _progressWord = '';
+  bool _progressActive = false;
 
+  int get progressStart => _progressStart;
+  int get progressEnd => _progressEnd;
+  String get progressWord => _progressWord;
+  bool get progressActive => _progressActive;
   // Voice settings
   double _rate = 0.5;   // speaking rate
   double _pitch = 1.0;
@@ -41,7 +49,17 @@ class TTSProvider extends ChangeNotifier {
   double get volume => _volume;
   String get selectedLanguage => _selectedLanguage;
   String get selectedVoice => _selectedVoice; // <-- this is the "voiceId"
-
+  int get currentLineIndex {
+    final s = _text;
+    if (s.isEmpty) return 0;
+    final start = _progressStart.clamp(0, s.length);
+    // Count '\n' before start
+    int lines = 0;
+    for (int i = 0; i < start; i++) {
+      if (s.codeUnitAt(i) == 10) lines++; // 10 == '\n'
+    }
+    return lines;
+  }
   // Voices
   List<Map<String, String>> get voices => _voices;
 
@@ -56,18 +74,22 @@ class TTSProvider extends ChangeNotifier {
       await _tts.setSpeechRate(_rate);
       await _tts.setPitch(_pitch);
       await _tts.setVolume(_volume);
+      await _tts.awaitSpeakCompletion(true); // important for consistent callbacks
 
       // Event handlers
       _tts.setStartHandler(() {
         _ttsState = TTSState.playing;
+        _progressActive = true;
         notifyListeners();
       });
       _tts.setCompletionHandler(() {
         _ttsState = TTSState.stopped;
+        _progressActive = false;
         notifyListeners();
       });
       _tts.setCancelHandler(() {
         _ttsState = TTSState.stopped;
+        _progressActive = false;
         notifyListeners();
       });
       _tts.setPauseHandler(() {
