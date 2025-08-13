@@ -253,6 +253,46 @@ class VoiceSettingsPanel extends StatelessWidget {
                         ],
                       ),
                     ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Timing offset slider for word highlighting sync
+                    _buildSettingSection(
+                      context: context,
+                      title: 'Highlight Timing',
+                      icon: Icons.timer,
+                      child: Column(
+                        children: [
+                          Slider(
+                            value: ttsProvider.timingOffset,
+                            min: 0.3,
+                            max: 2.0,
+                            divisions: 17,
+                            label: ttsProvider.timingOffset.toStringAsFixed(1),
+                            onChanged: ttsProvider.adjustTimingOffset,
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Faster',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                'Slower',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),

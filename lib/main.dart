@@ -25,12 +25,15 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
         title: 'Text to Speech',
+        debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
             seedColor: Colors.blue,
             brightness: Brightness.light,
           ),
           useMaterial3: true,
+          // Accessibility improvements
+          visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
         darkTheme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
@@ -38,13 +41,23 @@ class MyApp extends StatelessWidget {
             brightness: Brightness.dark,
           ),
           useMaterial3: true,
+          // Accessibility improvements
+          visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
         home: const SplashScreen(),
         routes: {
           '/home': (context) => const HomeScreen(),
           '/history': (context) => const HistoryScreen(),
         },
-        debugShowCheckedModeBanner: false,
+        // Accessibility improvements
+        builder: (context, child) {
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaleFactor: MediaQuery.of(context).textScaleFactor.clamp(0.8, 1.5),
+            ),
+            child: child!,
+          );
+        },
       );
   }
 }

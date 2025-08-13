@@ -63,6 +63,41 @@ class ControlPanel extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
+                    // Error display
+                    if (ttsProvider.hasError) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.errorContainer,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.error.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: Theme.of(context).colorScheme.error,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                ttsProvider.lastError ?? 'An error occurred',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onErrorContainer,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    
                     // Status indicator
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -93,6 +128,64 @@ class ControlPanel extends StatelessWidget {
                         ],
                       ),
                     ),
+                    
+                    // Progress indicator
+                    if (ttsProvider.progressActive && ttsProvider.text.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Progress',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  '${(ttsProvider.progressPercentage * 100).toInt()}%',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            LinearProgressIndicator(
+                              value: ttsProvider.progressPercentage,
+                              backgroundColor: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            if (ttsProvider.progressWord.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                'Current word: "${ttsProvider.progressWord}"',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                  fontSize: 12,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                     
                     const SizedBox(height: 16),
                     
@@ -162,17 +255,20 @@ class ControlPanel extends StatelessWidget {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 16),
                     ],
+                    
+                    // Action buttons
                     Row(
                       children: [
-                        FilledButton.icon(
-                          icon: const Icon(Icons.play_arrow),
-                          label: const Text('Play & Save'),
-                          onPressed: () async {
-                            await playAndSaveToHistory(context, ttsProvider, context.read<HistoryProvider>());
-                            // Optional: jump to History after each play
-                            // if (context.mounted) Navigator.pushNamed(context, '/history');
-                          },
+                        Expanded(
+                          child: FilledButton.icon(
+                            icon: const Icon(Icons.play_arrow),
+                            label: const Text('Play & Save'),
+                            onPressed: ttsProvider.text.isEmpty ? null : () async {
+                              await playAndSaveToHistory(context, ttsProvider, context.read<HistoryProvider>());
+                            },
+                          ),
                         ),
                         const SizedBox(width: 12),
                         OutlinedButton.icon(

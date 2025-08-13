@@ -1,8 +1,6 @@
 import 'dart:io';
 
-import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart';
 
 import '../model/tts_history_item.dart';
@@ -17,37 +15,16 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  late final AudioPlayer _player;
-
-  // Track which item is active and whether playback is via TTS or file
+  // Track which item is active
   String? _currentId;
-  bool _usingTts = false; // should be false most of the time now (offline playback)
 
   @override
   void initState() {
     super.initState();
-    _player = AudioPlayer();
-
-    // Configure audio session for speech (routes correctly, ducks music)
-    AudioSession.instance.then((session) {
-      session.configure(const AudioSessionConfiguration.speech());
-    });
-
-    // Clear selection when local file finishes
-    _player.playerStateStream.listen((state) {
-      if (state.processingState == ProcessingState.completed) {
-        _player.stop();
-        setState(() {
-          _currentId = null;
-          _usingTts = false;
-        });
-      }
-    });
   }
 
   @override
   void dispose() {
-    _player.dispose();
     super.dispose();
   }
 
@@ -75,85 +52,45 @@ class _HistoryScreenState extends State<HistoryScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Offline audio saved.')),
     );
-
-    // Re-fetch the updated item (with filePath) and start playing it
-    final updated = hp.items.firstWhere((e) => e.id == item.id, orElse: () => item);
-    await _startItem(updated);
   }
 
   Future<void> _startItem(TtsHistoryItem item) async {
     // Stop any current playback
     await _stopCurrent();
 
-    final path = item.filePath;
-    final hasFile = path != null && File(path).existsSync();
-
-    if (!hasFile) {
-      // No local file → ask to generate (do NOT stream online here)
-      if (!mounted) return;
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Offline file missing'),
-          content: const Text('Generate and save offline audio for this item?'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
-          ],
-        ),
-      );
-      if (ok == true) await _ensureOffline(item);
-      return;
-    }
-
-    // Play saved audio file
-    try {
-      await _player.setFilePath(path!);
-      await _player.play();
-      setState(() {
-        _currentId = item.id;
-        _usingTts = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not play saved audio: $e')),
-      );
-    }
+    final tts = context.read<TTSProvider>();
+    
+    // Reapply saved settings to match original sound
+    await tts.setVoice(item.voiceId);
+    tts.setRate(item.rate);
+    tts.setPitch(item.pitch);
+    
+    // Set the text and start speaking
+    tts.setText(item.text);
+    await tts.speak();
+    
+    setState(() {
+      _currentId = item.id;
+    });
   }
 
   Future<void> _pauseItem() async {
     if (_currentId == null) return;
-    if (_usingTts) {
-      await context.read<TTSProvider>().pause();
-    } else {
-      if (_player.playing) {
-        await _player.pause();
-      }
-    }
+    await context.read<TTSProvider>().pause();
     setState(() {}); // refresh buttons
   }
 
   Future<void> _resumeItem() async {
     if (_currentId == null) return;
-    if (_usingTts) {
-      await context.read<TTSProvider>().resume();
-    } else {
-      await _player.play();
-    }
+    await context.read<TTSProvider>().resume();
     setState(() {});
   }
 
   Future<void> _stopCurrent() async {
     if (_currentId == null) return;
-    if (_usingTts) {
-      await context.read<TTSProvider>().stop();
-    } else {
-      await _player.stop();
-    }
+    await context.read<TTSProvider>().stop();
     setState(() {
       _currentId = null;
-      _usingTts = false;
     });
   }
 
@@ -163,17 +100,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final isCurrent = _isCurrent(item.id);
     final ttsState = context.watch<TTSProvider>().ttsState;
 
-    final isFilePlaying = !_usingTts && _player.playing && isCurrent;
-    final isFilePaused = !_usingTts &&
-        !(_player.playing) &&
-        isCurrent &&
-        _player.playerState.processingState == ProcessingState.ready;
+    final isPlaying = isCurrent && ttsState == TTSState.playing;
+    final isPaused = isCurrent && ttsState == TTSState.paused;
 
-    final isTtsPlaying = _usingTts && isCurrent && ttsState == TTSState.playing;
-    final isTtsPaused = _usingTts && isCurrent && ttsState == TTSState.paused;
-
-    final showPause = isFilePlaying || isTtsPlaying;
-    final showResume = isFilePaused || isTtsPaused;
+    final showPause = isPlaying;
+    final showResume = isPaused;
     final showStop = isCurrent;
 
     return Row(
@@ -203,125 +134,288 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<HistoryProvider>(
-      builder: (context, hp, _) {
-        final items = hp.items;
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('History'),
-            actions: [
-              if (items.isNotEmpty)
-                IconButton(
-                  icon: const Icon(Icons.delete_sweep),
-                  tooltip: 'Clear all',
-                  onPressed: () async {
-                    final ok = await showDialog<bool>(
-                      context: context,
-                      builder: (_) => AlertDialog(
-                        title: const Text('Clear history?'),
-                        content: const Text('This removes all saved items.'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancel'),
-                          ),
-                          FilledButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Clear'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (ok == true) {
-                      await _stopCurrent();
-                      await hp.clear();
-                    }
-                  },
-                ),
-            ],
+    return Scaffold(
+      backgroundColor: const Color(0xFF293a4c), // Using the same color as splash screen
+      appBar: AppBar(
+        title: const Text(
+          'TTS History',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
           ),
-          body: items.isEmpty
-              ? const Center(child: Text('No saved items yet'))
-              : ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (_, i) {
-              final it = items[i];
-              final hasLocal =
-                  it.filePath != null && File(it.filePath!).existsSync();
-
-              return Dismissible(
-                key: ValueKey(it.id),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  color: Colors.redAccent,
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: const Icon(Icons.delete, color: Colors.white),
-                ),
-                confirmDismiss: (_) async {
-                  return await showDialog<bool>(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text('Delete item?'),
-                      content: const Text('This will remove it from history.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel'),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Delete'),
-                        ),
-                      ],
+        ),
+        backgroundColor: const Color(0xFF293a4c),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Consumer2<TTSProvider, HistoryProvider>(
+        builder: (context, ttsProvider, historyProvider, child) {
+          final history = historyProvider.items;
+          
+          if (history.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.history,
+                    size: 64,
+                    color: Colors.white.withOpacity(0.6),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No TTS history yet',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withOpacity(0.8),
                     ),
-                  );
-                },
-                onDismissed: (_) async {
-                  if (_isCurrent(it.id)) {
-                    await _stopCurrent();
-                  }
-                  await hp.remove(it.id);
-                },
-                child: ListTile(
-                  leading: Icon(
-                    hasLocal ? Icons.audiotrack : Icons.cloud_download,
                   ),
-                  title: Text(
-                    it.text.length > 60
-                        ? '${it.text.substring(0, 60)}…'
-                        : it.text,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  const SizedBox(height: 8),
+                  Text(
+                    'Start converting text to speech to see your history here',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.6),
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  subtitle: Text(
-                    '${it.voiceId} • rate ${it.rate.toStringAsFixed(2)} • pitch ${it.pitch.toStringAsFixed(2)}\n'
-                        '${it.createdAt}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                ],
+              ),
+            );
+          }
+          
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: history.length,
+            itemBuilder: (context, index) {
+              final item = history[index];
+              return _buildHistoryItem(context, item, ttsProvider, historyProvider);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildHistoryItem(
+    BuildContext context,
+    TtsHistoryItem item,
+    TTSProvider ttsProvider,
+    HistoryProvider historyProvider,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        title: Text(
+          item.text.length > 100 
+              ? '${item.text.substring(0, 100)}...' 
+              : item.text,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.voice_chat,
+                  size: 16,
+                  color: Colors.white.withOpacity(0.7),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Voice: ${item.voiceId}',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 12,
                   ),
-                  isThreeLine: true,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (!hasLocal)
-                        IconButton(
-                          tooltip: 'Save offline',
-                          icon: const Icon(Icons.download_for_offline),
-                          onPressed: () => _ensureOffline(it),
-                        ),
-                      _buildControls(context, it),
-                    ],
+                ),
+                const SizedBox(width: 16),
+                Icon(
+                  Icons.speed,
+                  size: 16,
+                  color: Colors.white.withOpacity(0.7),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Rate: ${item.rate.toStringAsFixed(1)}',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 12,
                   ),
-                  onTap: () => _startItem(it),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  Icons.tune,
+                  size: 16,
+                  color: Colors.white.withOpacity(0.7),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Pitch: ${item.pitch.toStringAsFixed(1)}',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Icon(
+                  Icons.access_time,
+                  size: 16,
+                  color: Colors.white.withOpacity(0.7),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _formatDate(item.createdAt),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+            if (item.filePath != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(
+                    Icons.audio_file,
+                    size: 16,
+                    color: Colors.white.withOpacity(0.7),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'Audio file available',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+        trailing: PopupMenuButton<String>(
+          icon: Icon(
+            Icons.more_vert,
+            color: Colors.white.withOpacity(0.8),
+          ),
+          onSelected: (value) {
+            switch (value) {
+              case 'play':
+                _ensureOffline(item);
+                break;
+              case 'delete':
+                _showDeleteDialog(context, item, historyProvider);
+                break;
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'play',
+              child: Row(
+                children: [
+                  Icon(Icons.play_arrow),
+                  SizedBox(width: 8),
+                  Text('Play'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'delete',
+              child: Row(
+                children: [
+                  Icon(Icons.delete, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('Delete', style: TextStyle(color: Colors.red)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteDialog(
+    BuildContext context,
+    TtsHistoryItem item,
+    HistoryProvider historyProvider,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF293a4c),
+        title: const Text(
+          'Delete History Item',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'Are you sure you want to delete this TTS history item?',
+          style: TextStyle(color: Colors.white.withOpacity(0.8)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white.withOpacity(0.6)),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              historyProvider.remove(item.id);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('History item deleted'),
+                  backgroundColor: Colors.red,
                 ),
               );
             },
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red),
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    if (difference.inDays > 0) {
+      return '${difference.inDays}d ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m ago';
+    } else {
+      return 'Just now';
+    }
   }
 }

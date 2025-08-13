@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
+import 'package:provider/provider.dart';
+import '../providers/tts_provider.dart';
+import '../providers/history_provider.dart';
 import 'home_screen.dart';
+import 'dart:async'; // Added for Timer
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -9,8 +12,7 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -81,16 +83,16 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.primary,
+      backgroundColor: const Color(0xFF293a4c), // Using the requested color
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Theme.of(context).colorScheme.primary,
-              Theme.of(context).colorScheme.primaryContainer,
-              Theme.of(context).colorScheme.secondary.withOpacity(0.3),
+              const Color(0xFF293a4c), // Main background color
+              const Color(0xFF1e2a3a), // Darker shade for gradient
+              const Color(0xFF3a4c5e).withOpacity(0.3), // Lighter accent
             ],
             stops: const [0.0, 0.7, 1.0],
           ),
@@ -121,7 +123,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 offset: const Offset(0, 10),
                               ),
                               BoxShadow(
-                                color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.2),
+                                color: Colors.white.withOpacity(0.2),
                                 blurRadius: 30,
                                 offset: const Offset(0, 0),
                               ),
@@ -135,13 +137,13 @@ class _SplashScreenState extends State<SplashScreen>
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.surface,
+                                    color: Colors.white.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(30),
                                   ),
                                   child: Icon(
-                                    Icons.mic,
+                                    Icons.volume_up,
                                     size: 100,
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color: Colors.white.withOpacity(0.8),
                                   ),
                                 );
                               },
@@ -157,7 +159,7 @@ class _SplashScreenState extends State<SplashScreen>
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onPrimary,
+                            color: Colors.white,
                             shadows: [
                               Shadow(
                                 color: Colors.black.withOpacity(0.3),
@@ -165,7 +167,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 blurRadius: 4,
                               ),
                               Shadow(
-                                color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.5),
+                                color: Colors.white.withOpacity(0.5),
                                 offset: const Offset(0, 0),
                                 blurRadius: 8,
                               ),
@@ -180,7 +182,7 @@ class _SplashScreenState extends State<SplashScreen>
                           'Natural Human Voice',
                           style: TextStyle(
                             fontSize: 18,
-                            color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
+                            color: Colors.white.withOpacity(0.9),
                             fontWeight: FontWeight.w500,
                             shadows: [
                               Shadow(
@@ -198,10 +200,10 @@ class _SplashScreenState extends State<SplashScreen>
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.1),
+                            color: Colors.white.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(25),
                             border: Border.all(
-                              color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.3),
+                              color: Colors.white.withOpacity(0.3),
                               width: 1,
                             ),
                           ),
@@ -213,7 +215,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 child: CircularProgressIndicator(
                                   strokeWidth: 3,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    Theme.of(context).colorScheme.onPrimary,
+                                    Colors.white,
                                   ),
                                 ),
                               ),
@@ -222,7 +224,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 'Loading...',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.8),
+                                  color: Colors.white.withOpacity(0.8),
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),

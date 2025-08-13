@@ -224,55 +224,110 @@ class _TextInputPanelState extends State<TextInputPanel> {
                         ),
                       ),
                     ),
-                    if (ttsProvider.fileName.isNotEmpty) ...[
+                    
+                    // File info and error display
+                    if (ttsProvider.fileName.isNotEmpty || ttsProvider.hasError) ...[
                       const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .secondaryContainer,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .secondary
-                                .withOpacity(0.3),
+                      if (ttsProvider.hasError) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.errorContainer,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.error.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: Theme.of(context).colorScheme.error,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  ttsProvider.lastError ?? 'An error occurred',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onErrorContainer,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.file_present,
-                              color: Theme.of(context).colorScheme.secondary,
+                        const SizedBox(height: 8),
+                      ],
+                      if (ttsProvider.fileName.isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .secondaryContainer,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .secondary
+                                  .withOpacity(0.3),
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                ttsProvider.fileName,
-                                style: TextStyle(
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.file_present,
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      ttsProvider.fileName,
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSecondaryContainer,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (ttsProvider.text.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${ttsProvider.text.length} characters loaded',
+                                        style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSecondaryContainer
+                                              .withOpacity(0.7),
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: ttsProvider.clearText,
+                                icon: Icon(
+                                  Icons.close,
                                   color: Theme.of(context)
                                       .colorScheme
                                       .onSecondaryContainer,
-                                  fontWeight: FontWeight.w500,
+                                  size: 18,
                                 ),
-                                overflow: TextOverflow.ellipsis,
+                                tooltip: 'Clear',
                               ),
-                            ),
-                            IconButton(
-                              onPressed: ttsProvider.clearText,
-                              icon: Icon(
-                                Icons.close,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSecondaryContainer,
-                                size: 18,
-                              ),
-                              tooltip: 'Clear',
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ],
                 ),
