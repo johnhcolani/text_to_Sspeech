@@ -1,7 +1,10 @@
 import 'dart:io';
+
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:provider/provider.dart';
+
 import '../model/tts_history_item.dart';
 import '../providers/history_provider.dart';
 import '../providers/tts_provider.dart';
@@ -16,16 +19,21 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   late final AudioPlayer _player;
 
-  // Track which item is "active" and whether we're using TTS or file
+  // Track which item is active and whether playback is via TTS or file
   String? _currentId;
-  bool _usingTts = false;
+  bool _usingTts = false; // should be false most of the time now (offline playback)
 
   @override
   void initState() {
     super.initState();
     _player = AudioPlayer();
 
-    // When file playback completes, clear current selection
+    // Configure audio session for speech (routes correctly, ducks music)
+    AudioSession.instance.then((session) {
+      session.configure(const AudioSessionConfiguration.speech());
+    });
+
+    // Clear selection when local file finishes
     _player.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
         _player.stop();
@@ -43,39 +51,74 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.dispose();
   }
 
+  Future<void> _ensureOffline(TtsHistoryItem item) async {
+    final tts = context.read<TTSProvider>();
+    final hp = context.read<HistoryProvider>();
+
+    // Reapply saved settings to match original sound
+    await tts.setVoice(item.voiceId);
+    tts.setRate(item.rate);
+    tts.setPitch(item.pitch);
+
+    final path = await tts.synthesizeToFile();
+    if (path == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save offline audio on this device/voice.')),
+      );
+      return;
+    }
+
+    await hp.updateFilePath(item.id, path);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Offline audio saved.')),
+    );
+
+    // Re-fetch the updated item (with filePath) and start playing it
+    final updated = hp.items.firstWhere((e) => e.id == item.id, orElse: () => item);
+    await _startItem(updated);
+  }
+
   Future<void> _startItem(TtsHistoryItem item) async {
-    // Stop anything currently playing (file or TTS)
+    // Stop any current playback
     await _stopCurrent();
 
     final path = item.filePath;
     final hasFile = path != null && File(path).existsSync();
 
-    if (hasFile) {
-      // Play saved audio file
-      try {
-        await _player.setFilePath(path!);
-        await _player.play();
-        setState(() {
-          _currentId = item.id;
-          _usingTts = false;
-        });
-      } catch (e) {
-        // Fallback to TTS if file fails
-        final tts = context.read<TTSProvider>();
-        await tts.playText(item.text);
-        setState(() {
-          _currentId = item.id;
-          _usingTts = true;
-        });
-      }
-    } else {
-      // No file → speak via TTS
-      final tts = context.read<TTSProvider>();
-      await tts.playText(item.text);
+    if (!hasFile) {
+      // No local file → ask to generate (do NOT stream online here)
+      if (!mounted) return;
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Offline file missing'),
+          content: const Text('Generate and save offline audio for this item?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
+          ],
+        ),
+      );
+      if (ok == true) await _ensureOffline(item);
+      return;
+    }
+
+    // Play saved audio file
+    try {
+      await _player.setFilePath(path!);
+      await _player.play();
       setState(() {
         _currentId = item.id;
-        _usingTts = true;
+        _usingTts = false;
       });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not play saved audio: $e')),
+      );
     }
   }
 
@@ -84,7 +127,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (_usingTts) {
       await context.read<TTSProvider>().pause();
     } else {
-      // file
       if (_player.playing) {
         await _player.pause();
       }
@@ -97,10 +139,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (_usingTts) {
       await context.read<TTSProvider>().resume();
     } else {
-      // file
       await _player.play();
     }
-    setState(() {}); // refresh buttons
+    setState(() {});
   }
 
   Future<void> _stopCurrent() async {
@@ -118,20 +159,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   bool _isCurrent(String id) => _currentId == id;
 
-  // Determine which buttons to show for a row
-  // We also observe TTS state so the UI reflects TTS pause/resume
   Widget _buildControls(BuildContext context, TtsHistoryItem item) {
     final isCurrent = _isCurrent(item.id);
     final ttsState = context.watch<TTSProvider>().ttsState;
 
     final isFilePlaying = !_usingTts && _player.playing && isCurrent;
-    final isFilePaused = !_usingTts && !(_player.playing) && isCurrent &&
+    final isFilePaused = !_usingTts &&
+        !(_player.playing) &&
+        isCurrent &&
         _player.playerState.processingState == ProcessingState.ready;
 
     final isTtsPlaying = _usingTts && isCurrent && ttsState == TTSState.playing;
-    final isTtsPaused  = _usingTts && isCurrent && ttsState == TTSState.paused;
+    final isTtsPaused = _usingTts && isCurrent && ttsState == TTSState.paused;
 
-    // Show: Play (if not current or paused/stopped), Pause (if playing), Resume (if paused), Stop (if current)
     final showPause = isFilePlaying || isTtsPlaying;
     final showResume = isFilePaused || isTtsPaused;
     final showStop = isCurrent;
@@ -139,7 +179,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (!isCurrent || showResume) // Play/Resume
+        if (!isCurrent || showResume)
           IconButton(
             tooltip: showResume ? 'Resume' : 'Play',
             icon: Icon(showResume ? Icons.play_arrow : Icons.play_circle),
@@ -208,6 +248,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (_, i) {
               final it = items[i];
+              final hasLocal =
+                  it.filePath != null && File(it.filePath!).existsSync();
+
               return Dismissible(
                 key: ValueKey(it.id),
                 direction: DismissDirection.endToStart,
@@ -237,16 +280,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   );
                 },
                 onDismissed: (_) async {
-                  // If you delete the currently-playing item, stop playback.
                   if (_isCurrent(it.id)) {
                     await _stopCurrent();
                   }
                   await hp.remove(it.id);
                 },
                 child: ListTile(
-                  leading: Icon(it.filePath != null ? Icons.audiotrack : Icons.history),
+                  leading: Icon(
+                    hasLocal ? Icons.audiotrack : Icons.cloud_download,
+                  ),
                   title: Text(
-                    it.text.length > 60 ? '${it.text.substring(0, 60)}…' : it.text,
+                    it.text.length > 60
+                        ? '${it.text.substring(0, 60)}…'
+                        : it.text,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -257,8 +303,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   isThreeLine: true,
-                  // 🔽 Controls: play / pause / resume / stop
-                  trailing: _buildControls(context, it),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!hasLocal)
+                        IconButton(
+                          tooltip: 'Save offline',
+                          icon: const Icon(Icons.download_for_offline),
+                          onPressed: () => _ensureOffline(it),
+                        ),
+                      _buildControls(context, it),
+                    ],
+                  ),
                   onTap: () => _startItem(it),
                 ),
               );

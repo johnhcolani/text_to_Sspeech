@@ -8,7 +8,22 @@ class HistoryProvider extends ChangeNotifier {
 
   List<TtsHistoryItem> get items =>
       List.unmodifiable(_items..sort((a,b) => b.createdAt.compareTo(a.createdAt)));
-
+  Future<void> updateFilePath(String id, String filePath) async {
+    final idx = _items.indexWhere((e) => e.id == id);
+    if (idx == -1) return;
+    final old = _items[idx];
+    _items[idx] = TtsHistoryItem(
+      id: old.id,
+      text: old.text,
+      filePath: filePath,
+      voiceId: old.voiceId,
+      rate: old.rate,
+      pitch: old.pitch,
+      createdAt: old.createdAt,
+    );
+    await _save();
+    notifyListeners();
+  }
   Future<void> load() async {
     final sp = await SharedPreferences.getInstance();
     final raw = sp.getStringList(_kKey) ?? [];

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/tts_provider.dart';
+import '../widgets/reading_panel.dart';
 import '../widgets/text_input_panel.dart';
 import '../widgets/control_panel.dart';
 import '../widgets/voice_settings_panel.dart';
@@ -50,7 +51,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       const ControlPanel(),
                       
                       const SizedBox(height: 20),
-                      
+                      const ReadingPanel(),
+                      const SizedBox(height: 20),
                       // Voice settings panel (expandable)
                       if (_showVoiceSettings) const VoiceSettingsPanel(),
                       
