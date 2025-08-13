@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:text_to_speech/providers/history_provider.dart';
 import 'screens/splash_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/history_screen.dart';
 import 'providers/tts_provider.dart';
 
 void main() {
@@ -21,9 +23,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => TTSProvider(),
-      child: MaterialApp(
+    return MaterialApp(
         title: 'Text to Speech',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
@@ -40,8 +40,11 @@ class MyApp extends StatelessWidget {
           useMaterial3: true,
         ),
         home: const SplashScreen(),
+        routes: {
+          '/home': (context) => const HomeScreen(),
+          '/history': (context) => const HistoryScreen(),
+        },
         debugShowCheckedModeBanner: false,
-      ),
-    );
+      );
   }
 }

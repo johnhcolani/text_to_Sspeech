@@ -244,13 +244,19 @@ class TTSProvider extends ChangeNotifier {
   // ---------- Speak / Stop / Pause / Resume ----------
   Future<void> speak() async {
     final toSay = _text.trim();
-    if (toSay.isEmpty) return;
+    if (toSay.isEmpty) {
+      debugPrint('TTS: No text to speak');
+      return;
+    }
     try {
+      debugPrint('TTS: Starting to speak: "${toSay.substring(0, toSay.length > 50 ? 50 : toSay.length)}..."');
       await _applyVoice(); // ensure voice is set
       await _tts.setSpeechRate(_rate);
       await _tts.setPitch(_pitch);
       await _tts.setVolume(_volume);
+      debugPrint('TTS: Calling flutter_tts.speak()');
       await _tts.speak(toSay);
+      debugPrint('TTS: speak() called successfully');
     } catch (e) {
       debugPrint('Error speaking: $e');
     }
@@ -316,7 +322,11 @@ class TTSProvider extends ChangeNotifier {
   /// Tries to synthesize to a file and returns the absolute path, or null if unsupported/failed.
   Future<String?> synthesizeToFile() async {
     final content = _text.trim();
-    if (content.isEmpty) return null;
+    if (content.isEmpty) {
+      debugPrint('TTS: No text to synthesize to file');
+      return null;
+    }
+    debugPrint('TTS: Attempting to synthesize to file: "${content.substring(0, content.length > 50 ? 50 : content.length)}..."');
 
     try {
       await _applyVoice();

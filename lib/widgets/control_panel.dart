@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/tts_provider.dart';
+import '../providers/history_provider.dart';
 import '../utils/history_actions.dart';
 
 class ControlPanel extends StatelessWidget {
@@ -168,7 +169,7 @@ class ControlPanel extends StatelessWidget {
                           icon: const Icon(Icons.play_arrow),
                           label: const Text('Play & Save'),
                           onPressed: () async {
-                            await playAndSaveToHistory(context);
+                            await playAndSaveToHistory(context, ttsProvider, context.read<HistoryProvider>());
                             // Optional: jump to History after each play
                             // if (context.mounted) Navigator.pushNamed(context, '/history');
                           },
