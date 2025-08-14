@@ -14,11 +14,15 @@ class ControlPanel extends StatelessWidget {
       builder: (context, ttsProvider, child) {
         return Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
+            color: Colors.white.withOpacity(0.15), // Slightly brighter than text input panel
             borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.25), // Slightly brighter border
+              width: 1,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withOpacity(0.25), // Slightly brighter shadow
                 blurRadius: 15,
                 offset: const Offset(0, 5),
               ),
@@ -31,7 +35,7 @@ class ControlPanel extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.tertiaryContainer,
+                  color: const Color(0xFF64B5F6).withOpacity(0.3), // Slightly brighter blue
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(20),
                     topRight: Radius.circular(20),
@@ -41,7 +45,7 @@ class ControlPanel extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.play_circle_outline,
-                      color: Theme.of(context).colorScheme.tertiary,
+                      color: const Color(0xFF64B5F6), // Light blue icon
                       size: 24,
                     ),
                     const SizedBox(width: 12),
@@ -51,7 +55,7 @@ class ControlPanel extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.tertiary,
+                          color: const Color(0xFF64B5F6), // Light blue text
                         ),
                       ),
                     ),
@@ -70,19 +74,17 @@ class ControlPanel extends StatelessWidget {
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.errorContainer,
+                          color: const Color(0xFFEF5350).withOpacity(0.25), // Slightly brighter red
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.error.withOpacity(0.3),
+                            color: const Color(0xFFEF5350).withOpacity(0.5), // Brighter red border
                           ),
                         ),
                         child: Row(
                           children: [
                             Icon(
                               Icons.error_outline,
-                              color: Theme.of(context).colorScheme.error,
+                              color: const Color(0xFFEF5350), // Red icon
                               size: 20,
                             ),
                             const SizedBox(width: 8),
@@ -90,9 +92,7 @@ class ControlPanel extends StatelessWidget {
                               child: Text(
                                 ttsProvider.lastError ?? 'An error occurred',
                                 style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onErrorContainer,
+                                  color: Colors.white, // White text
                                   fontSize: 14,
                                 ),
                               ),
@@ -148,10 +148,11 @@ class ControlPanel extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.surfaceVariant.withOpacity(0.3),
+                          color: Colors.white.withOpacity(0.1), // Light white background
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.2), // White border
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,9 +163,7 @@ class ControlPanel extends StatelessWidget {
                                 Text(
                                   'Progress',
                                   style: TextStyle(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface.withOpacity(0.7),
+                                    color: Colors.white.withOpacity(0.8), // White text with opacity
                                     fontWeight: FontWeight.w500,
                                     fontSize: 14,
                                   ),
@@ -172,9 +171,7 @@ class ControlPanel extends StatelessWidget {
                                 Text(
                                   '${(ttsProvider.progressPercentage * 100).toInt()}%',
                                   style: TextStyle(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface,
+                                    color: Colors.white, // White text
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
                                   ),
@@ -184,11 +181,9 @@ class ControlPanel extends StatelessWidget {
                             const SizedBox(height: 8),
                             LinearProgressIndicator(
                               value: ttsProvider.progressPercentage,
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.outline.withOpacity(0.3),
+                              backgroundColor: Colors.white.withOpacity(0.2), // White background with opacity
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                Theme.of(context).colorScheme.primary,
+                                const Color(0xFF64B5F6), // Light blue progress
                               ),
                             ),
                             if (ttsProvider.progressWord.isNotEmpty) ...[
@@ -196,13 +191,10 @@ class ControlPanel extends StatelessWidget {
                               Text(
                                 'Current word: "${ttsProvider.progressWord}"',
                                 style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface.withOpacity(0.6),
+                                  color: Colors.white.withOpacity(0.9), // White text with opacity
                                   fontSize: 12,
                                   fontStyle: FontStyle.italic,
                                 ),
-                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ],
@@ -234,12 +226,8 @@ class ControlPanel extends StatelessWidget {
                                 },
                           icon: _getPlayPauseIcon(ttsProvider.ttsState),
                           label: _getPlayPauseLabel(ttsProvider.ttsState),
-                          backgroundColor: Theme.of(
-                            context,
-                          ).colorScheme.primary,
-                          foregroundColor: Theme.of(
-                            context,
-                          ).colorScheme.onPrimary,
+                          backgroundColor: const Color(0xFF64B5F6), // Light blue background
+                          foregroundColor: Colors.white, // White text and icon
                           size: 70,
                         ),
 
@@ -251,10 +239,8 @@ class ControlPanel extends StatelessWidget {
                               : ttsProvider.stop,
                           icon: Icons.stop,
                           label: 'Stop',
-                          backgroundColor: Theme.of(context).colorScheme.error,
-                          foregroundColor: Theme.of(
-                            context,
-                          ).colorScheme.onError,
+                          backgroundColor: const Color(0xFFEF5350), // Red background
+                          foregroundColor: Colors.white, // White text and icon
                           size: 50,
                         ),
                       ],
@@ -266,14 +252,10 @@ class ControlPanel extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.secondaryContainer.withOpacity(0.3),
+                        color: const Color(0xFF64B5F6).withOpacity(0.2), // Light blue with opacity
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.secondary.withOpacity(0.2),
+                          color: const Color(0xFF64B5F6).withOpacity(0.4), // Light blue border
                         ),
                       ),
                       child: Column(
@@ -283,7 +265,7 @@ class ControlPanel extends StatelessWidget {
                             children: [
                               Icon(
                                 Icons.record_voice_over,
-                                color: Theme.of(context).colorScheme.secondary,
+                                color: const Color(0xFF64B5F6), // Light blue icon
                                 size: 20,
                               ),
                               const SizedBox(width: 8),
@@ -292,9 +274,7 @@ class ControlPanel extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface,
+                                  color: Colors.white, // White text
                                 ),
                               ),
                             ],
@@ -324,6 +304,10 @@ class ControlPanel extends StatelessWidget {
                                 onPressed: () =>
                                     _showVoicePicker(context, ttsProvider),
                                 style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF64B5F6), // Light blue text
+                                  side: BorderSide(
+                                    color: const Color(0xFF64B5F6).withOpacity(0.5), // Light blue border
+                                  ),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 12,
                                     vertical: 8,
@@ -343,10 +327,11 @@ class ControlPanel extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.surfaceVariant.withOpacity(0.3),
+                          color: Colors.white.withOpacity(0.1), // Light white background
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.2), // White border
+                          ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -354,16 +339,14 @@ class ControlPanel extends StatelessWidget {
                             Text(
                               'Text Length:',
                               style: TextStyle(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withOpacity(0.7),
+                                color: Colors.white.withOpacity(0.8), // White text with opacity
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                             Text(
                               '${ttsProvider.text.length} characters',
                               style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSurface,
+                                color: Colors.white, // White text
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -404,13 +387,9 @@ class ControlPanel extends StatelessWidget {
                                 );
                               },
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.error,
+                                foregroundColor: const Color(0xFFEF5350), // Red text
                                 side: BorderSide(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.error.withOpacity(0.5),
+                                  color: const Color(0xFFEF5350).withOpacity(0.5), // Red border
                                 ),
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 12,
@@ -449,21 +428,17 @@ class ControlPanel extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.tertiaryContainer.withOpacity(0.3),
+                          color: const Color(0xFF64B5F6).withOpacity(0.2), // Light blue with opacity
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.tertiary.withOpacity(0.2),
+                            color: const Color(0xFF64B5F6).withOpacity(0.4), // Light blue border
                           ),
                         ),
                         child: Row(
                           children: [
                             Icon(
                               Icons.keyboard,
-                              color: Theme.of(context).colorScheme.tertiary,
+                              color: const Color(0xFF64B5F6), // Light blue icon
                               size: 20,
                             ),
                             const SizedBox(width: 8),
@@ -473,9 +448,7 @@ class ControlPanel extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface,
+                                  color: Colors.white, // White text
                                 ),
                               ),
                             ),
@@ -491,13 +464,9 @@ class ControlPanel extends StatelessWidget {
                               icon: const Icon(Icons.keyboard_hide, size: 18),
                               label: const Text('Hide'),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.tertiary,
+                                foregroundColor: const Color(0xFF64B5F6), // Light blue text
                                 side: BorderSide(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.tertiary.withOpacity(0.5),
+                                  color: const Color(0xFF64B5F6).withOpacity(0.5), // Light blue border
                                 ),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
@@ -535,6 +504,12 @@ class ControlPanel extends StatelessWidget {
                           label: const Text('History'),
                           onPressed: () =>
                               Navigator.pushNamed(context, '/history'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF64B5F6), // Light blue text
+                            side: BorderSide(
+                              color: const Color(0xFF64B5F6).withOpacity(0.5), // Light blue border
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -583,7 +558,7 @@ class ControlPanel extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
+            color: Colors.white, // White text for better visibility
             fontWeight: FontWeight.w500,
             fontSize: 12,
           ),
@@ -596,13 +571,13 @@ class ControlPanel extends StatelessWidget {
   Color _getStatusColor(TTSState state) {
     switch (state) {
       case TTSState.playing:
-        return Colors.green;
+        return const Color(0xFF4CAF50); // Brighter green
       case TTSState.paused:
-        return Colors.orange;
+        return const Color(0xFFFF9800); // Brighter orange
       case TTSState.stopped:
-        return Colors.grey;
+        return const Color(0xFF9E9E9E); // Brighter grey
       case TTSState.continued:
-        return Colors.blue;
+        return const Color(0xFF2196F3); // Brighter blue
     }
   }
 
@@ -661,9 +636,9 @@ class ControlPanel extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.7,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
+        decoration: BoxDecoration(
+          color: const Color(0xFF293a4c), // Dark background matching app theme
+          borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(20),
             topRight: Radius.circular(20),
           ),
@@ -676,7 +651,7 @@ class ControlPanel extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: Colors.white.withOpacity(0.3), // White handle bar
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -688,7 +663,7 @@ class ControlPanel extends StatelessWidget {
                 children: [
                   Icon(
                     Icons.record_voice_over,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: const Color(0xFF64B5F6), // Light blue icon
                     size: 24,
                   ),
                   const SizedBox(width: 12),
@@ -697,7 +672,7 @@ class ControlPanel extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: Colors.white, // White text
                     ),
                   ),
                 ],
@@ -714,14 +689,14 @@ class ControlPanel extends StatelessWidget {
                           Icon(
                             Icons.voice_chat_outlined,
                             size: 64,
-                            color: Colors.grey[400],
+                            color: Colors.white.withOpacity(0.5), // White icon with opacity
                           ),
                           const SizedBox(height: 16),
                           Text(
                             'No voices available',
                             style: TextStyle(
                               fontSize: 18,
-                              color: Colors.grey[600],
+                              color: Colors.white, // White text
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -729,7 +704,7 @@ class ControlPanel extends StatelessWidget {
                             'Try changing the language first',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Colors.grey[500],
+                              color: Colors.white.withOpacity(0.7), // White text with opacity
                             ),
                           ),
                         ],
@@ -748,18 +723,16 @@ class ControlPanel extends StatelessWidget {
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           color: isSelected
-                              ? Theme.of(context).colorScheme.primaryContainer
-                              : Theme.of(context).colorScheme.surface,
+                              ? const Color(0xFF64B5F6).withOpacity(0.2) // Light blue when selected
+                              : Colors.white.withOpacity(0.1), // Light white when not selected
                           child: ListTile(
                             leading: Icon(
                               isSelected
                                   ? Icons.check_circle
                                   : Icons.record_voice_over,
                               color: isSelected
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface.withOpacity(0.6),
+                                  ? const Color(0xFF64B5F6) // Light blue when selected
+                                  : Colors.white.withOpacity(0.7), // White with opacity when not selected
                             ),
                             title: Text(
                               voiceName,
@@ -768,23 +741,16 @@ class ControlPanel extends StatelessWidget {
                                     ? FontWeight.bold
                                     : FontWeight.normal,
                                 color: isSelected
-                                    ? Theme.of(
-                                        context,
-                                      ).colorScheme.onPrimaryContainer
-                                    : Theme.of(context).colorScheme.onSurface,
+                                    ? const Color(0xFF64B5F6) // Light blue when selected
+                                    : Colors.white, // White when not selected
                               ),
                             ),
                             subtitle: Text(
                               locale,
                               style: TextStyle(
                                 color: isSelected
-                                    ? Theme.of(context)
-                                          .colorScheme
-                                          .onPrimaryContainer
-                                          .withOpacity(0.7)
-                                    : Theme.of(
-                                        context,
-                                      ).colorScheme.onSurface.withOpacity(0.6),
+                                    ? const Color(0xFF64B5F6).withOpacity(0.8) // Light blue with opacity when selected
+                                    : Colors.white.withOpacity(0.7), // White with opacity when not selected
                               ),
                             ),
                             onTap: () {
@@ -804,6 +770,13 @@ class ControlPanel extends StatelessWidget {
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF64B5F6), // Light blue text
+                    side: BorderSide(
+                      color: const Color(0xFF64B5F6).withOpacity(0.5), // Light blue border
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
                   child: const Text('Close'),
                 ),
               ),

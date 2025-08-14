@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:io';
 import 'package:provider/provider.dart';
 import '../providers/tts_provider.dart';
 
@@ -11,44 +13,48 @@ class VoiceSettingsPanel extends StatelessWidget {
       builder: (context, ttsProvider, child) {
         return Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(20),
+            color: Colors.white.withOpacity(0.15), // Same as other panels
+            borderRadius: BorderRadius.circular(14), // Further reduced from 16
+            border: Border.all(
+              color: Colors.white.withOpacity(0.25), // White border
+              width: 1,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
+                color: Colors.black.withOpacity(0.2), // Further reduced shadow
+                blurRadius: 8, // Further reduced from 10
+                offset: const Offset(0, 2), // Further reduced from 3
               ),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Panel header
+              // Panel header - made even more compact
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(10), // Further reduced from 12
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.secondaryContainer,
+                  color: const Color(0xFF64B5F6).withOpacity(0.3), // Light blue header
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
+                    topLeft: Radius.circular(14), // Further reduced from 16
+                    topRight: Radius.circular(14), // Further reduced from 16
                   ),
                 ),
                 child: Row(
                   children: [
                     Icon(
                       Icons.settings_voice,
-                      color: Theme.of(context).colorScheme.secondary,
-                      size: 24,
+                      color: const Color(0xFF64B5F6), // Light blue icon
+                      size: 18, // Further reduced from 20
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 6), // Further reduced from 8
                     Expanded(
                       child: Text(
                         'Voice Settings',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 15, // Further reduced from 16
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.secondary,
+                          color: const Color(0xFF64B5F6), // Light blue text
                         ),
                       ),
                     ),
@@ -56,9 +62,9 @@ class VoiceSettingsPanel extends StatelessWidget {
                 ),
               ),
 
-              // Settings content
+              // Settings content - made even more compact
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(8), // Further reduced from 10
                 child: Column(
                   children: [
                     // Language selection
@@ -68,13 +74,32 @@ class VoiceSettingsPanel extends StatelessWidget {
                       icon: Icons.language,
                       child: DropdownButtonFormField<String>(
                         value: ttsProvider.selectedLanguage,
+                        style: const TextStyle(color: Colors.white, fontSize: 11), // Further reduced font size
+                        dropdownColor: const Color(0xFF293a4c), // Dark background for dropdown
+                        icon: Icon(
+                          Icons.arrow_drop_down,
+                          color: const Color(0xFF64B5F6), // Light blue arrow
+                          size: 20,
+                        ),
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(6), // Further reduced from 8
+                            borderSide: BorderSide(
+                              color: Colors.white.withOpacity(0.3), // White border
+                            ),
                           ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6), // Further reduced from 8
+                            borderSide: BorderSide(
+                              color: const Color(0xFF64B5F6), // Light blue focused border
+                              width: 2,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.05), // Light background
                           contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                            horizontal: 8, // Further reduced from 10
+                            vertical: 6, // Further reduced from 8
                           ),
                         ),
                         items:
@@ -92,7 +117,10 @@ class VoiceSettingsPanel extends StatelessWidget {
                             ].map((String value) {
                               return DropdownMenuItem<String>(
                                 value: value,
-                                child: Text(value),
+                                child: Text(
+                                  value,
+                                  style: const TextStyle(color: Colors.white, fontSize: 11), // Further reduced font size
+                                ),
                               );
                             }).toList(),
                         onChanged: (String? newValue) {
@@ -103,7 +131,7 @@ class VoiceSettingsPanel extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8), // Further reduced from 10
 
                     // Voice selection
                     if (ttsProvider.voices.isNotEmpty) ...[
@@ -118,15 +146,34 @@ class VoiceSettingsPanel extends StatelessWidget {
                                 Expanded(
                                   child: DropdownButtonFormField<String>(
                                     value: ttsProvider.selectedVoice,
+                                    style: const TextStyle(color: Colors.white, fontSize: 11), // Further reduced font size
+                                    dropdownColor: const Color(0xFF293a4c), // Dark background for dropdown
+                                    icon: Icon(
+                                      Icons.arrow_drop_down,
+                                      color: const Color(0xFF64B5F6), // Light blue arrow
+                                      size: 20,
+                                    ),
                                     decoration: InputDecoration(
                                       border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(6), // Further reduced from 8
+                                        borderSide: BorderSide(
+                                          color: Colors.white.withOpacity(0.3), // White border
+                                        ),
                                       ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(6), // Further reduced from 8
+                                        borderSide: BorderSide(
+                                          color: const Color(0xFF64B5F6), // Light blue focused border
+                                          width: 2,
+                                        ),
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.white.withOpacity(0.05), // Light background
                                       contentPadding:
                                           const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 12,
-                                          ),
+                                        horizontal: 8, // Further reduced from 10
+                                        vertical: 6, // Further reduced from 8
+                                      ),
                                     ),
                                     items: ttsProvider.voices.map((voice) {
                                       String voiceName =
@@ -144,14 +191,16 @@ class VoiceSettingsPanel extends StatelessWidget {
                                               overflow: TextOverflow.ellipsis,
                                               style: const TextStyle(
                                                 fontWeight: FontWeight.w500,
+                                                color: Colors.white, // White text
+                                                fontSize: 11, // Further reduced font size
                                               ),
                                             ),
                                             if (locale.isNotEmpty)
                                               Text(
                                                 locale,
                                                 style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey[600],
+                                                  fontSize: 9, // Further reduced from 10
+                                                  color: Colors.white.withOpacity(0.7), // White with opacity
                                                 ),
                                               ),
                                           ],
@@ -165,35 +214,33 @@ class VoiceSettingsPanel extends StatelessWidget {
                                     },
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 4), // Further reduced from 6
                                 IconButton(
                                   onPressed: () => ttsProvider.refreshVoices(),
-                                  icon: const Icon(Icons.refresh),
+                                  icon: const Icon(Icons.refresh, size: 16), // Further reduced size
                                   tooltip: 'Refresh voices',
                                   style: IconButton.styleFrom(
-                                    backgroundColor: Theme.of(
-                                      context,
-                                    ).colorScheme.primaryContainer,
+                                    backgroundColor: const Color(0xFF64B5F6).withOpacity(0.2), // Light blue background
+                                    foregroundColor: const Color(0xFF64B5F6), // Light blue icon
+                                    padding: const EdgeInsets.all(4), // Further reduced padding
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 3), // Further reduced from 4
                             Text(
                               '${ttsProvider.voices.length} voices available',
                               style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withOpacity(0.6),
+                                fontSize: 9, // Further reduced from 10
+                                color: Colors.white.withOpacity(0.7), // White with opacity
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8), // Further reduced from 10
                     ] else ...[
-                      // No voices available
+                      // No voices available - simplified
                       _buildSettingSection(
                         context: context,
                         title: 'Voice',
@@ -201,67 +248,51 @@ class VoiceSettingsPanel extends StatelessWidget {
                         child: Column(
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(16),
+                              padding: const EdgeInsets.all(8), // Further reduced from 10
                               decoration: BoxDecoration(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.errorContainer.withOpacity(0.3),
-                                borderRadius: BorderRadius.circular(12),
+                                color: const Color(0xFFEF5350).withOpacity(0.2), // Red with opacity
+                                borderRadius: BorderRadius.circular(6), // Further reduced from 8
                                 border: Border.all(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.error.withOpacity(0.2),
+                                  color: const Color(0xFFEF5350).withOpacity(0.4), // Red border
                                 ),
                               ),
                               child: Row(
                                 children: [
                                   Icon(
                                     Icons.warning_outlined,
-                                    color: Theme.of(context).colorScheme.error,
-                                    size: 20,
+                                    color: const Color(0xFFEF5350), // Red icon
+                                    size: 14, // Further reduced from 16
                                   ),
-                                  const SizedBox(width: 12),
+                                  const SizedBox(width: 6), // Further reduced from 8
                                   Expanded(
                                     child: Text(
-                                      'No voices available for the selected language',
+                                      'No voices available',
                                       style: TextStyle(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurface,
-                                        fontSize: 14,
+                                        color: Colors.white, // White text
+                                        fontSize: 11, // Further reduced from 12
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    icon: const Icon(Icons.refresh),
-                                    label: const Text('Refresh Voices'),
-                                    onPressed: () =>
-                                        ttsProvider.refreshVoices(),
-                                  ),
+                            const SizedBox(height: 3), // Further reduced from 4
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.refresh, size: 12), // Further reduced size
+                              label: const Text('Refresh Voices', style: TextStyle(fontSize: 10)), // Further reduced font size
+                              onPressed: () => ttsProvider.refreshVoices(),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF64B5F6), // Light blue text
+                                side: BorderSide(
+                                  color: const Color(0xFF64B5F6).withOpacity(0.5), // Light blue border
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    icon: const Icon(Icons.language),
-                                    label: const Text('Change Language'),
-                                    onPressed: () {
-                                      // This will trigger language change which should load new voices
-                                    },
-                                  ),
-                                ),
-                              ],
+                                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4), // Further reduced padding
+                              ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8), // Further reduced from 10
                     ],
 
                     // Speech rate
@@ -271,20 +302,34 @@ class VoiceSettingsPanel extends StatelessWidget {
                       icon: Icons.speed,
                       child: Column(
                         children: [
-                          Slider(
-                            value: context
-                                .watch<TTSProvider>()
-                                .rate, // was speechRate
-                            min: 0.1,
-                            max: 1.0,
-                            divisions: 9,
-                            label: context
-                                .watch<TTSProvider>()
-                                .rate
-                                .toStringAsFixed(1),
-                            onChanged: context
-                                .read<TTSProvider>()
-                                .setRate, // was setSpeechRate
+                          SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              activeTrackColor: const Color(0xFF64B5F6), // Light blue active track
+                              inactiveTrackColor: Colors.white.withOpacity(0.2), // White inactive track
+                              thumbColor: const Color(0xFF64B5F6), // Light blue thumb
+                              overlayColor: const Color(0xFF64B5F6).withOpacity(0.2), // Light blue overlay
+                              valueIndicatorColor: const Color(0xFF64B5F6), // Light blue value indicator
+                              valueIndicatorTextStyle: const TextStyle(
+                                color: Colors.white, // White text
+                                fontSize: 10, // Further reduced from 11
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            child: Slider(
+                              value: context
+                                  .watch<TTSProvider>()
+                                  .rate,
+                              min: 0.1,
+                              max: 1.0,
+                              divisions: 9,
+                              label: context
+                                  .watch<TTSProvider>()
+                                  .rate
+                                  .toStringAsFixed(1),
+                              onChanged: context
+                                  .read<TTSProvider>()
+                                  .setRate,
+                            ),
                           ),
 
                           Row(
@@ -293,19 +338,15 @@ class VoiceSettingsPanel extends StatelessWidget {
                               Text(
                                 'Slow',
                                 style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface.withOpacity(0.6),
-                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.7), // White text with opacity
+                                  fontSize: 9, // Further reduced from 10
                                 ),
                               ),
                               Text(
                                 'Fast',
                                 style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface.withOpacity(0.6),
-                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.7), // White text with opacity
+                                  fontSize: 9, // Further reduced from 10
                                 ),
                               ),
                             ],
@@ -314,42 +355,60 @@ class VoiceSettingsPanel extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8), // Further reduced from 10
 
-                    // Pitch
+                    // Speech pitch
                     _buildSettingSection(
                       context: context,
-                      title: 'Pitch',
-                      icon: Icons.tune,
+                      title: 'Speech Pitch',
+                      icon: Platform.isIOS ? Icons.tune : Icons.music_note, // Platform-specific icon
                       child: Column(
                         children: [
-                          Slider(
-                            value: ttsProvider.pitch,
-                            min: 0.5,
-                            max: 2.0,
-                            divisions: 15,
-                            label: ttsProvider.pitch.toStringAsFixed(1),
-                            onChanged: ttsProvider.setPitch,
+                          SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              activeTrackColor: const Color(0xFF64B5F6), // Light blue active track
+                              inactiveTrackColor: Colors.white.withOpacity(0.2), // White inactive track
+                              thumbColor: const Color(0xFF64B5F6), // Light blue thumb
+                              overlayColor: const Color(0xFF64B5F6).withOpacity(0.2), // Light blue overlay
+                              valueIndicatorColor: const Color(0xFF64B5F6), // Light blue value indicator
+                              valueIndicatorTextStyle: const TextStyle(
+                                color: Colors.white, // White text
+                                fontSize: 10, // Further reduced from 11
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            child: Slider(
+                              value: context
+                                  .watch<TTSProvider>()
+                                  .pitch,
+                              min: 0.5,
+                              max: 2.0,
+                              divisions: 15,
+                              label: context
+                                  .watch<TTSProvider>()
+                                  .pitch
+                                  .toStringAsFixed(1),
+                              onChanged: context
+                                  .read<TTSProvider>()
+                                  .setPitch,
+                            ),
                           ),
+
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
                                 'Low',
                                 style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface.withOpacity(0.6),
-                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.7), // White text with opacity
+                                  fontSize: 9, // Further reduced from 10
                                 ),
                               ),
                               Text(
                                 'High',
                                 style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface.withOpacity(0.6),
-                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.7), // White text with opacity
+                                  fontSize: 9, // Further reduced from 10
                                 ),
                               ),
                             ],
@@ -358,7 +417,7 @@ class VoiceSettingsPanel extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8), // Further reduced from 10
 
                     // Volume
                     _buildSettingSection(
@@ -367,15 +426,29 @@ class VoiceSettingsPanel extends StatelessWidget {
                       icon: Icons.volume_up,
                       child: Column(
                         children: [
-                          Slider(
-                            value: ttsProvider.volume,
-                            min: 0.0,
-                            max: 1.0,
-                            divisions: 10,
-                            label:
-                                (ttsProvider.volume * 100).toInt().toString() +
-                                '%',
-                            onChanged: ttsProvider.setVolume,
+                          SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              activeTrackColor: const Color(0xFF64B5F6), // Light blue active track
+                              inactiveTrackColor: Colors.white.withOpacity(0.2), // White inactive track
+                              thumbColor: const Color(0xFF64B5F6), // Light blue thumb
+                              overlayColor: const Color(0xFF64B5F6).withOpacity(0.2), // Light blue overlay
+                              valueIndicatorColor: const Color(0xFF64B5F6), // Light blue value indicator
+                              valueIndicatorTextStyle: const TextStyle(
+                                color: Colors.white, // White text
+                                fontSize: 10, // Further reduced from 11
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            child: Slider(
+                              value: ttsProvider.volume,
+                              min: 0.0,
+                              max: 1.0,
+                              divisions: 10,
+                              label:
+                                  (ttsProvider.volume * 100).toInt().toString() +
+                                  '%',
+                              onChanged: ttsProvider.setVolume,
+                            ),
                           ),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -383,19 +456,15 @@ class VoiceSettingsPanel extends StatelessWidget {
                               Text(
                                 'Mute',
                                 style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface.withOpacity(0.6),
-                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.7), // White text with opacity
+                                  fontSize: 9, // Further reduced from 10
                                 ),
                               ),
                               Text(
                                 'Max',
                                 style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface.withOpacity(0.6),
-                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.7), // White text with opacity
+                                  fontSize: 9, // Further reduced from 10
                                 ),
                               ),
                             ],
@@ -404,9 +473,9 @@ class VoiceSettingsPanel extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8), // Further reduced from 10
 
-                    // Device Capabilities Information
+                    // Device Capabilities Information - simplified
                     _buildSettingSection(
                       context: context,
                       title: 'Device Capabilities',
@@ -418,63 +487,50 @@ class VoiceSettingsPanel extends StatelessWidget {
                         builder: (context, snapshot) {
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
-                            return CircularProgressIndicator();
+                            return const CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF64B5F6)), // Light blue
+                            );
                           }
 
                           final supportsFileSynthesis = snapshot.data ?? false;
 
                           return Container(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(6), // Further reduced from 8
                             decoration: BoxDecoration(
                               color: supportsFileSynthesis
                                   ? Colors.green.withOpacity(0.1)
                                   : Colors.orange.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(4), // Further reduced from 6
                               border: Border.all(
                                 color: supportsFileSynthesis
                                     ? Colors.green.withOpacity(0.3)
                                     : Colors.orange.withOpacity(0.3),
                               ),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            child: Row(
                               children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      supportsFileSynthesis
-                                          ? Icons.check_circle
-                                          : Icons.info_outline,
-                                      size: 16,
+                                Icon(
+                                  supportsFileSynthesis
+                                      ? Icons.check_circle
+                                      : Icons.info_outline,
+                                  size: 12, // Further reduced from 14
+                                  color: supportsFileSynthesis
+                                      ? Colors.green
+                                      : Colors.orange,
+                                ),
+                                const SizedBox(width: 4), // Further reduced from 6
+                                Expanded(
+                                  child: Text(
+                                    supportsFileSynthesis
+                                        ? 'Offline Audio Supported'
+                                        : 'Live TTS Only',
+                                    style: TextStyle(
+                                      fontSize: 10, // Further reduced from 12
+                                      fontWeight: FontWeight.w600,
                                       color: supportsFileSynthesis
                                           ? Colors.green
                                           : Colors.orange,
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      supportsFileSynthesis
-                                          ? 'Offline Audio Supported'
-                                          : 'Live TTS Only',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: supportsFileSynthesis
-                                            ? Colors.green
-                                            : Colors.orange,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  supportsFileSynthesis
-                                      ? 'Your device supports saving high-quality offline audio files for car playback without stuttering.'
-                                      : 'Your device doesn\'t support offline audio files. Audio will be generated live using TTS, which may not have the same quality as saved files.',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface.withOpacity(0.7),
                                   ),
                                 ),
                               ],
@@ -484,126 +540,57 @@ class VoiceSettingsPanel extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8), // Further reduced from 10
 
-                    // Audio Quality Settings for Car Audio
+                    // Audio Quality Settings for Car Audio - simplified
                     _buildSettingSection(
                       context: context,
                       title: 'Audio Quality (Car Optimized)',
                       icon: Icons.high_quality,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.primaryContainer.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.primary.withOpacity(0.2),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Container(
+                        padding: const EdgeInsets.all(6), // Further reduced from 8
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF64B5F6).withOpacity(0.2), // Light blue with opacity
+                          borderRadius: BorderRadius.circular(4), // Further reduced from 6
+                          border: Border.all(
+                            color: const Color(0xFF64B5F6).withOpacity(0.4), // Light blue border
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
                               children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.info_outline,
-                                      size: 16,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Car Audio Optimized',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.primary,
-                                      ),
-                                    ),
-                                  ],
+                                Icon(
+                                  Icons.info_outline,
+                                  size: 12, // Further reduced from 14
+                                  color: const Color(0xFF64B5F6), // Light blue icon
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(width: 4), // Further reduced from 6
                                 Text(
-                                  'Uses WAV format and high-quality synthesis for smooth car playback without stuttering or cracking.',
+                                  'Car Audio Optimized',
                                   style: TextStyle(
-                                    fontSize: 12,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface.withOpacity(0.7),
+                                    fontSize: 10, // Further reduced from 12
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF64B5F6), // Light blue text
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                                size: 16,
+                            const SizedBox(height: 3), // Further reduced from 4
+                            Text(
+                              'WAV format for smooth car playback',
+                              style: TextStyle(
+                                fontSize: 9, // Further reduced from 10
+                                color: Colors.white.withOpacity(0.7), // White with opacity
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'WAV format for compatibility',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.green,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'High-quality synthesis',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.green,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Optimized for car audio systems',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.green,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8), // Further reduced from 10
 
                     // Timing offset slider for word highlighting sync
                     _buildSettingSection(
@@ -612,13 +599,27 @@ class VoiceSettingsPanel extends StatelessWidget {
                       icon: Icons.timer,
                       child: Column(
                         children: [
-                          Slider(
-                            value: ttsProvider.timingOffset,
-                            min: 0.3,
-                            max: 2.0,
-                            divisions: 17,
-                            label: ttsProvider.timingOffset.toStringAsFixed(1),
-                            onChanged: ttsProvider.adjustTimingOffset,
+                          SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              activeTrackColor: const Color(0xFF64B5F6), // Light blue active track
+                              inactiveTrackColor: Colors.white.withOpacity(0.2), // White inactive track
+                              thumbColor: const Color(0xFF64B5F6), // Light blue thumb
+                              overlayColor: const Color(0xFF64B5F6).withOpacity(0.2), // Light blue overlay
+                              valueIndicatorColor: const Color(0xFF64B5F6), // Light blue value indicator
+                              valueIndicatorTextStyle: const TextStyle(
+                                color: Colors.white, // White text
+                                fontSize: 10, // Further reduced from 11
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            child: Slider(
+                              value: ttsProvider.timingOffset,
+                              min: 0.3,
+                              max: 2.0,
+                              divisions: 17,
+                              label: ttsProvider.timingOffset.toStringAsFixed(1),
+                              onChanged: ttsProvider.adjustTimingOffset,
+                            ),
                           ),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -626,19 +627,15 @@ class VoiceSettingsPanel extends StatelessWidget {
                               Text(
                                 'Faster',
                                 style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface.withOpacity(0.6),
-                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.7), // White text with opacity
+                                  fontSize: 9, // Further reduced from 10
                                 ),
                               ),
                               Text(
                                 'Slower',
                                 style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface.withOpacity(0.6),
-                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.7), // White text with opacity
+                                  fontSize: 9, // Further reduced from 10
                                 ),
                               ),
                             ],
@@ -669,23 +666,23 @@ class VoiceSettingsPanel extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: Theme.of(context).colorScheme.secondary,
-              size: 20,
+              color: const Color(0xFF64B5F6), // Light blue icon
+              size: 14, // Further reduced from 16
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 3), // Further reduced from 4
             Expanded(
               child: Text(
                 title,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 13, // Further reduced from 14
                   fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: Colors.white, // White text
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 3), // Further reduced from 4
         child,
       ],
     );

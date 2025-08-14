@@ -59,30 +59,32 @@ class _TextInputPanelState extends State<TextInputPanel> {
         expands: true,
         textAlignVertical: TextAlignVertical.top,
         onChanged: (v) => context.read<TTSProvider>().setText(v),
+        style: const TextStyle(
+          color: Colors.white, // White text for visibility
+          fontSize: 14,
+        ),
         decoration: InputDecoration(
           hintText:
               'Enter your text here...\n\nYou can type directly or upload a file above.',
           hintStyle: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+            color: Colors.white.withOpacity(0.5), // White with opacity for hint
             fontSize: 14,
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
-              color: Theme.of(context).colorScheme.outline,
+              color: Colors.white.withOpacity(0.3), // White border with opacity
             ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
-              color: Theme.of(context).colorScheme.primary,
+              color: const Color(0xFF64B5F6), // Light blue focused border
               width: 2,
             ),
           ),
           filled: true,
-          fillColor: Theme.of(
-            context,
-          ).colorScheme.surfaceVariant.withOpacity(0.3),
+          fillColor: Colors.white.withOpacity(0.05), // Very light white background
           contentPadding: const EdgeInsets.all(16),
         ),
       ),
@@ -114,11 +116,15 @@ class _TextInputPanelState extends State<TextInputPanel> {
 
         return Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
+            color: Colors.white.withOpacity(0.1), // Changed to white with low opacity
             borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2), // Added white border
+              width: 1,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withOpacity(0.2), // Increased shadow opacity
                 blurRadius: 15,
                 offset: const Offset(0, 5),
               ),
@@ -136,7 +142,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
+                    color: const Color(0xFF64B5F6).withOpacity(0.2), // Light blue with opacity
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(20),
                       topRight: Radius.circular(20),
@@ -146,7 +152,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
                     children: [
                       Icon(
                         Icons.edit_note,
-                        color: Theme.of(context).colorScheme.primary,
+                        color: const Color(0xFF64B5F6), // Light blue icon
                         size: 24,
                       ),
                       const SizedBox(width: 12),
@@ -155,7 +161,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: const Color(0xFF64B5F6), // Light blue text
                         ),
                       ),
                       const Spacer(),
@@ -168,9 +174,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
                             '$count chars',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onPrimaryContainer.withOpacity(0.7),
+                              color: Colors.white.withOpacity(0.8), // White with opacity
                             ),
                           );
                         },
@@ -189,7 +193,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
                         children: [
                           Icon(
                             Icons.upload_file,
-                            color: Theme.of(context).colorScheme.secondary,
+                            color: const Color(0xFF64B5F6), // Light blue icon
                             size: 20,
                           ),
                           const SizedBox(width: 8),
@@ -199,7 +203,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.onSurface,
+                                color: Colors.white, // White text
                               ),
                             ),
                           ),
@@ -208,7 +212,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton.icon(
+                        child: OutlinedButton.icon(
                           onPressed: ttsProvider.isLoading
                               ? null
                               : ttsProvider.pickFile,
@@ -218,6 +222,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
                                   height: 16,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white), // White loading indicator
                                   ),
                                 )
                               : const Icon(Icons.upload_file),
@@ -226,19 +231,21 @@ class _TextInputPanelState extends State<TextInputPanel> {
                                 ? 'Processing...'
                                 : 'Choose PDF/TXT',
                             overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white, // Always white text for readability
+                              fontSize: 14,
+                            ),
                           ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(
-                              context,
-                            ).colorScheme.secondary,
-                            foregroundColor: Theme.of(
-                              context,
-                            ).colorScheme.onSecondary,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white, // White text and icon
+                            side: BorderSide(
+                              color: const Color(0xFF64B5F6), // Blue border
+                              width: 2,
+                            ),
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            elevation: 2,
                           ),
                         ),
                       ),
@@ -252,21 +259,17 @@ class _TextInputPanelState extends State<TextInputPanel> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.errorContainer,
+                              color: const Color(0xFFEF5350).withOpacity(0.2), // Red with opacity
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.error.withOpacity(0.3),
+                                color: const Color(0xFFEF5350).withOpacity(0.4), // Red border
                               ),
                             ),
                             child: Row(
                               children: [
                                 Icon(
                                   Icons.error_outline,
-                                  color: Theme.of(context).colorScheme.error,
+                                  color: const Color(0xFFEF5350), // Red icon
                                   size: 18,
                                 ),
                                 const SizedBox(width: 8),
@@ -275,9 +278,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
                                     ttsProvider.lastError ??
                                         'An error occurred',
                                     style: TextStyle(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onErrorContainer,
+                                      color: Colors.white, // White text
                                       fontSize: 13,
                                     ),
                                   ),
@@ -291,14 +292,10 @@ class _TextInputPanelState extends State<TextInputPanel> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.secondaryContainer,
+                              color: const Color(0xFF64B5F6).withOpacity(0.2), // Light blue with opacity
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.secondary.withOpacity(0.3),
+                                color: const Color(0xFF64B5F6).withOpacity(0.4), // Light blue border
                               ),
                             ),
                             child: Row(
@@ -318,9 +315,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
                                       Text(
                                         ttsProvider.fileName,
                                         style: TextStyle(
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.onSecondaryContainer,
+                                          color: Colors.white, // White text
                                           fontWeight: FontWeight.w500,
                                         ),
                                         overflow: TextOverflow.ellipsis,
@@ -330,10 +325,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
                                         Text(
                                           '${ttsProvider.text.length} characters loaded',
                                           style: TextStyle(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSecondaryContainer
-                                                .withOpacity(0.7),
+                                            color: Colors.white.withOpacity(0.7), // White with opacity
                                             fontSize: 12,
                                           ),
                                         ),
@@ -345,9 +337,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
                                   onPressed: ttsProvider.clearText,
                                   icon: Icon(
                                     Icons.close,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSecondaryContainer,
+                                    color: Colors.white, // White icon
                                     size: 18,
                                   ),
                                   tooltip: 'Clear',
@@ -363,7 +353,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
 
                 // Divider
                 Divider(
-                  color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                  color: Colors.white.withOpacity(0.2), // White with opacity
                   height: 1,
                   indent: 16,
                   endIndent: 16,
@@ -379,7 +369,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
                         children: [
                           Icon(
                             Icons.text_fields,
-                            color: Theme.of(context).colorScheme.tertiary,
+                            color: const Color(0xFF64B5F6), // Light blue icon
                             size: 20,
                           ),
                           const SizedBox(width: 8),
@@ -389,7 +379,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.tertiary,
+                                color: const Color(0xFF64B5F6), // Light blue text
                               ),
                             ),
                           ),
@@ -414,13 +404,9 @@ class _TextInputPanelState extends State<TextInputPanel> {
                               icon: const Icon(Icons.clear, size: 18),
                               label: const Text('Clear Text'),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.error,
+                                foregroundColor: const Color(0xFFEF5350), // Red text
                                 side: BorderSide(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.error.withOpacity(0.5),
+                                  color: const Color(0xFFEF5350).withOpacity(0.5), // Red border
                                 ),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16,
@@ -434,13 +420,9 @@ class _TextInputPanelState extends State<TextInputPanel> {
                               icon: const Icon(Icons.keyboard_hide, size: 18),
                               label: const Text('Hide Keyboard'),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.tertiary,
+                                foregroundColor: const Color(0xFF64B5F6), // Light blue text
                                 side: BorderSide(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.tertiary.withOpacity(0.5),
+                                  color: const Color(0xFF64B5F6).withOpacity(0.5), // Light blue border
                                 ),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16,

@@ -123,17 +123,22 @@ class _ReadingPanelState extends State<ReadingPanel> {
                     ],
                   ),
                 ),
-                LinearProgressIndicator(
-                  value: tts.progressPercentage,
-                  backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Theme.of(context).colorScheme.primary,
+                // Progress bar with better alignment
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  child: LinearProgressIndicator(
+                    value: tts.progressPercentage,
+                    backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).colorScheme.primary,
+                    ),
+                    minHeight: 4,
                   ),
                 ),
-                // Word progress indicator
+                // Word progress indicator with better alignment
                 if (tts.wordHighlightingActive && tts.words.isNotEmpty) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     child: Row(
                       children: [
                         Icon(
@@ -151,13 +156,20 @@ class _ReadingPanelState extends State<ReadingPanel> {
                             ),
                           ),
                         ),
-                        Text(
-                          tts.progressWord,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                            fontStyle: FontStyle.italic,
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            tts.progressWord,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                              fontStyle: FontStyle.italic,
+                            ),
                           ),
                         ),
                       ],
@@ -177,21 +189,21 @@ class _ReadingPanelState extends State<ReadingPanel> {
                     final style = Theme.of(context).textTheme.bodyMedium!;
                     return AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: isCurrent
-                            ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5)
+                            ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.6)
                             : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
                         border: isCurrent
-                            ? Border(
-                          left: BorderSide(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 3,
-                          ),
-                        )
+                            ? Border.all(
+                                color: Theme.of(context).colorScheme.primary,
+                                width: 2,
+                              )
                             : null,
                       ),
-                      child: _buildLine(tts, lines[i], i, style),
+                      child: _buildLine(tts, lines[i], i, style, isCurrent),
                     );
                   },
                 ),
@@ -203,8 +215,8 @@ class _ReadingPanelState extends State<ReadingPanel> {
     );
   }
 
-  // Enhanced word highlighting in the active line
-  Widget _buildLine(TTSProvider tts, String line, int lineIndex, TextStyle style) {
+  // Enhanced line highlighting with better word highlighting
+  Widget _buildLine(TTSProvider tts, String line, int lineIndex, TextStyle style, bool isCurrentLine) {
     final start = tts.progressStart;
     final end = tts.progressEnd;
 
@@ -218,9 +230,9 @@ class _ReadingPanelState extends State<ReadingPanel> {
     }
     final lineEnd = (lineStart + line.length).clamp(0, text.length);
 
-    // If TTS cursor is inside this line, split into [before][word][after] spans
+    // If TTS cursor is inside this line, highlight the current word
     final hasCursor = tts.progressActive && start >= lineStart && start <= lineEnd;
-    if (hasCursor && end >= start && end <= lineEnd && start < end) {
+    if (hasCursor && end >= start && end <= lineEnd && start < end && isCurrentLine) {
       final before = line.substring(0, (start - lineStart).clamp(0, line.length));
       final word = line.substring((start - lineStart).clamp(0, line.length), (end - lineStart).clamp(0, line.length));
       final after = line.substring((end - lineStart).clamp(0, line.length));
@@ -233,8 +245,9 @@ class _ReadingPanelState extends State<ReadingPanel> {
               text: word,
               style: style.copyWith(
                 backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.bold,
                 color: Theme.of(context).colorScheme.onSecondaryContainer,
+                fontSize: style.fontSize! * 1.1, // Make highlighted word slightly larger
               ),
             ),
             TextSpan(text: after, style: style),
@@ -243,8 +256,16 @@ class _ReadingPanelState extends State<ReadingPanel> {
       );
     }
 
-    // Default: render plain line
-    return Text(line, style: style);
+    // Default: render plain line with current line styling
+    return Text(
+      line, 
+      style: style.copyWith(
+        fontWeight: isCurrentLine ? FontWeight.w500 : FontWeight.normal,
+        color: isCurrentLine 
+            ? Theme.of(context).colorScheme.primary 
+            : style.color,
+      ),
+    );
   }
 
   BoxDecoration _box(BuildContext context) => BoxDecoration(

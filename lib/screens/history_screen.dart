@@ -17,6 +17,8 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   // Track which item is active
   String? _currentId;
+  // Track which items are expanded to show full text
+  Set<String> _expandedItems = {};
 
   @override
   void initState() {
@@ -27,6 +29,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void dispose() {
     super.dispose();
   }
+
+  // Toggle expansion state of a history item
+  void _toggleExpansion(String itemId) {
+    setState(() {
+      if (_expandedItems.contains(itemId)) {
+        _expandedItems.remove(itemId);
+      } else {
+        _expandedItems.add(itemId);
+      }
+    });
+  }
+
+  // Check if an item is expanded
+  bool _isExpanded(String itemId) => _expandedItems.contains(itemId);
 
   Future<void> _ensureOffline(TtsHistoryItem item) async {
     final tts = context.read<TTSProvider>();
@@ -136,16 +152,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     final tts = context.read<TTSProvider>();
 
+    // Set the text and voice settings for the reading panel
+    tts.setText(item.text);
+    tts.setVoice(item.voiceId);
+    tts.setRate(item.rate);
+    tts.setPitch(item.pitch);
+
     // Check if we have a saved audio file for high-quality playback
     if (item.filePath != null && File(item.filePath!).existsSync()) {
       // Use high-quality audio playback for saved files
       await tts.playSavedAudio(item.filePath!);
     } else {
       // Fallback to TTS synthesis
-      await tts.setVoice(item.voiceId);
-      tts.setRate(item.rate);
-      tts.setPitch(item.pitch);
-      tts.setText(item.text);
       await tts.speak();
     }
 
@@ -217,19 +235,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
         if (!isCurrent || showResume)
           IconButton(
             tooltip: showResume ? 'Resume' : 'Play',
-            icon: Icon(showResume ? Icons.play_arrow : Icons.play_circle),
+            icon: Icon(
+              showResume ? Icons.play_arrow : Icons.play_circle,
+              color: const Color(0xFF64B5F6), // Light blue for better visibility
+            ),
             onPressed: () => isCurrent ? _resumeItem() : _startItem(item),
           ),
         if (showPause)
           IconButton(
             tooltip: 'Pause',
-            icon: const Icon(Icons.pause_circle),
+            icon: const Icon(
+              Icons.pause_circle,
+              color: const Color(0xFFFFB74D), // Orange for pause
+            ),
             onPressed: _pauseItem,
           ),
         if (showStop)
           IconButton(
             tooltip: 'Stop',
-            icon: const Icon(Icons.stop_circle),
+            icon: const Icon(
+              Icons.stop_circle,
+              color: const Color(0xFFEF5350), // Red for stop
+            ),
             onPressed: _stopCurrent,
           ),
       ],
@@ -250,6 +277,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
         backgroundColor: const Color(0xFF293a4c),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(40),
+          child: Container(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Tap to play • Use expand button to read full text',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.7),
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
       ),
       body: Consumer2<TTSProvider, HistoryProvider>(
         builder: (context, ttsProvider, historyProvider, child) {
@@ -312,160 +353,230 @@ class _HistoryScreenState extends State<HistoryScreen> {
     TTSProvider ttsProvider,
     HistoryProvider historyProvider,
   ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        title: Text(
-          item.text.length > 100
-              ? '${item.text.substring(0, 100)}...'
-              : item.text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w500,
-          ),
+    final isExpanded = _isExpanded(item.id);
+    
+    return Dismissible(
+      key: Key(item.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(12),
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: const Icon(
+          Icons.delete,
+          color: Colors.white,
+          size: 30,
+        ),
+      ),
+      confirmDismiss: (direction) async {
+        return await _showDeleteDialog(context, item, historyProvider);
+      },
+      onDismissed: (direction) {
+        historyProvider.remove(item.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('History item deleted'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+        ),
+        child: Column(
           children: [
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(
-                  Icons.voice_chat,
-                  size: 16,
-                  color: Colors.white.withOpacity(0.7),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'Voice: ${item.voiceId}',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 12,
+            // Main content with tap to play
+            GestureDetector(
+              onTap: () => _startItem(item),
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(16),
+                title: Text(
+                  item.text.length > 100
+                      ? '${item.text.substring(0, 100)}...'
+                      : item.text,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(width: 16),
-                Icon(
-                  Icons.speed,
-                  size: 16,
-                  color: Colors.white.withOpacity(0.7),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.voice_chat,
+                          size: 16,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Voice: ${item.voiceId}',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Icon(
+                          Icons.speed,
+                          size: 16,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Rate: ${item.rate.toStringAsFixed(1)}',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.tune,
+                          size: 16,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Pitch: ${item.pitch.toStringAsFixed(1)}',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Icon(
+                          Icons.access_time,
+                          size: 16,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _formatDate(item.createdAt),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (item.filePath != null) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.audio_file,
+                            size: 16,
+                            color: Colors.white.withOpacity(0.7),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'Audio file available',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.7),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  'Rate: ${item.rate.toStringAsFixed(1)}',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 12,
-                  ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Expand/collapse button
+                    IconButton(
+                      onPressed: () => _toggleExpansion(item.id),
+                      icon: Icon(
+                        isExpanded ? Icons.expand_less : Icons.expand_more,
+                        color: const Color(0xFF64B5F6),
+                      ),
+                      tooltip: isExpanded ? 'Collapse' : 'Expand to read full text',
+                    ),
+                    // Play controls
+                    _buildControls(context, item),
+                  ],
                 ),
-              ],
+              ),
             ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  Icons.tune,
-                  size: 16,
-                  color: Colors.white.withOpacity(0.7),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'Pitch: ${item.pitch.toStringAsFixed(1)}',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 12,
+            
+            // Expanded text section
+            if (isExpanded) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.1),
+                    width: 1,
                   ),
                 ),
-                const SizedBox(width: 16),
-                Icon(
-                  Icons.access_time,
-                  size: 16,
-                  color: Colors.white.withOpacity(0.7),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  _formatDate(item.createdAt),
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-            if (item.filePath != null) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Icon(
-                    Icons.audio_file,
-                    size: 16,
-                    color: Colors.white.withOpacity(0.7),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      'Audio file available',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
-                        fontSize: 12,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.text_fields,
+                          size: 16,
+                          color: const Color(0xFF64B5F6),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Full Text:',
+                          style: TextStyle(
+                            color: const Color(0xFF64B5F6),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      item.text,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        height: 1.5,
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(height: 16),
             ],
-          ],
-        ),
-        trailing: PopupMenuButton<String>(
-          icon: Icon(Icons.more_vert, color: Colors.white.withOpacity(0.8)),
-          onSelected: (value) {
-            switch (value) {
-              case 'play':
-                _ensureOffline(item);
-                break;
-              case 'delete':
-                _showDeleteDialog(context, item, historyProvider);
-                break;
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'play',
-              child: Row(
-                children: [
-                  Icon(Icons.play_arrow),
-                  SizedBox(width: 8),
-                  Text('Play'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(Icons.delete, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('Delete', style: TextStyle(color: Colors.red)),
-                ],
-              ),
-            ),
           ],
         ),
       ),
     );
   }
 
-  void _showDeleteDialog(
+  Future<bool?> _showDeleteDialog(
     BuildContext context,
     TtsHistoryItem item,
     HistoryProvider historyProvider,
   ) {
-    showDialog(
+    return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF293a4c),
@@ -479,7 +590,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: Text(
               'Cancel',
               style: TextStyle(color: Colors.white.withOpacity(0.6)),
@@ -488,7 +599,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           TextButton(
             onPressed: () {
               historyProvider.remove(item.id);
-              Navigator.pop(context);
+              Navigator.pop(context, true);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('History item deleted'),
