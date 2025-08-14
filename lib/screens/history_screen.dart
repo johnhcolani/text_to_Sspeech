@@ -32,26 +32,102 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final tts = context.read<TTSProvider>();
     final hp = context.read<HistoryProvider>();
 
-    // Reapply saved settings to match original sound
-    await tts.setVoice(item.voiceId);
-    tts.setRate(item.rate);
-    tts.setPitch(item.pitch);
-
-    final path = await tts.synthesizeToFile();
-    if (path == null) {
+    // First check if the device supports file synthesis
+    final supportsFileSynthesis = await tts.isFileSynthesisSupported();
+    
+    if (!supportsFileSynthesis) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save offline audio on this device/voice.')),
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.white),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'This device doesn\'t support saving offline audio. Playing with live TTS instead.',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
+      
+      // Play directly with TTS instead of trying to save
+      await _startItem(item);
       return;
     }
 
+    // Try to save offline audio
+    final path = await tts.cache.ensureCached(
+      text: item.text,
+      voiceId: item.voiceId,
+      rate: item.rate,
+      pitch: item.pitch,
+    );
+    
+    if (path == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.white),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Could not save offline audio. Playing with live TTS instead.',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      
+      // Fallback to live TTS
+      await _startItem(item);
+      return;
+    }
+
+    // Successfully saved offline audio
     await hp.updateFilePath(item.id, path);
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Offline audio saved.')),
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Offline audio saved successfully!',
+                style: TextStyle(fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
+    
+    final updated = hp.items.firstWhere(
+      (e) => e.id == item.id,
+      orElse: () => item,
+    );
+    await _startItem(updated);
   }
 
   Future<void> _startItem(TtsHistoryItem item) async {
@@ -59,16 +135,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
     await _stopCurrent();
 
     final tts = context.read<TTSProvider>();
-    
-    // Reapply saved settings to match original sound
-    await tts.setVoice(item.voiceId);
-    tts.setRate(item.rate);
-    tts.setPitch(item.pitch);
-    
-    // Set the text and start speaking
-    tts.setText(item.text);
-    await tts.speak();
-    
+
+    // Check if we have a saved audio file for high-quality playback
+    if (item.filePath != null && File(item.filePath!).existsSync()) {
+      // Use high-quality audio playback for saved files
+      await tts.playSavedAudio(item.filePath!);
+    } else {
+      // Fallback to TTS synthesis
+      await tts.setVoice(item.voiceId);
+      tts.setRate(item.rate);
+      tts.setPitch(item.pitch);
+      tts.setText(item.text);
+      await tts.speak();
+    }
+
     setState(() {
       _currentId = item.id;
     });
@@ -76,19 +156,43 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _pauseItem() async {
     if (_currentId == null) return;
-    await context.read<TTSProvider>().pause();
+    final tts = context.read<TTSProvider>();
+
+    // Check if we're playing saved audio
+    if (tts.isPlayingSavedAudio) {
+      await tts.pauseSavedAudio();
+    } else {
+      await tts.pause();
+    }
+
     setState(() {}); // refresh buttons
   }
 
   Future<void> _resumeItem() async {
     if (_currentId == null) return;
-    await context.read<TTSProvider>().resume();
+    final tts = context.read<TTSProvider>();
+
+    // Check if we're playing saved audio
+    if (tts.isPlayingSavedAudio) {
+      await tts.resumeSavedAudio();
+    } else {
+      await tts.resume();
+    }
+
     setState(() {});
   }
 
   Future<void> _stopCurrent() async {
     if (_currentId == null) return;
-    await context.read<TTSProvider>().stop();
+    final tts = context.read<TTSProvider>();
+
+    // Check if we're playing saved audio
+    if (tts.isPlayingSavedAudio) {
+      await tts.stopSavedAudio();
+    } else {
+      await tts.stop();
+    }
+
     setState(() {
       _currentId = null;
     });
@@ -135,14 +239,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF293a4c), // Using the same color as splash screen
+      backgroundColor: const Color(
+        0xFF293a4c,
+      ), // Using the same color as splash screen
       appBar: AppBar(
         title: const Text(
           'TTS History',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: const Color(0xFF293a4c),
         elevation: 0,
@@ -151,7 +254,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: Consumer2<TTSProvider, HistoryProvider>(
         builder: (context, ttsProvider, historyProvider, child) {
           final history = historyProvider.items;
-          
+
           if (history.isEmpty) {
             return Center(
               child: Column(
@@ -184,13 +287,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
             );
           }
-          
+
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: history.length,
             itemBuilder: (context, index) {
               final item = history[index];
-              return _buildHistoryItem(context, item, ttsProvider, historyProvider);
+              return _buildHistoryItem(
+                context,
+                item,
+                ttsProvider,
+                historyProvider,
+              );
             },
           );
         },
@@ -209,16 +317,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
         title: Text(
-          item.text.length > 100 
-              ? '${item.text.substring(0, 100)}...' 
+          item.text.length > 100
+              ? '${item.text.substring(0, 100)}...'
               : item.text,
           style: const TextStyle(
             color: Colors.white,
@@ -317,10 +422,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ],
         ),
         trailing: PopupMenuButton<String>(
-          icon: Icon(
-            Icons.more_vert,
-            color: Colors.white.withOpacity(0.8),
-          ),
+          icon: Icon(Icons.more_vert, color: Colors.white.withOpacity(0.8)),
           onSelected: (value) {
             switch (value) {
               case 'play':
@@ -394,10 +496,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
               );
             },
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -407,7 +506,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays > 0) {
       return '${difference.inDays}d ago';
     } else if (difference.inHours > 0) {

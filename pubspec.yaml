@@ -54,6 +54,8 @@ dependencies:
   # Core utilities
   uuid: ^4.5.1
   shared_preferences: ^2.5.3
+  just_audio: ^0.10.4
+  connectivity_plus: ^6.1.5
 
 dev_dependencies:
   flutter_test:

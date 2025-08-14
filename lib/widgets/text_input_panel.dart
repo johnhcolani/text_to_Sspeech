@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemChannels;
 import 'package:provider/provider.dart';
 import '../providers/tts_provider.dart';
 
@@ -40,6 +41,12 @@ class _TextInputPanelState extends State<TextInputPanel> {
     super.dispose();
   }
 
+  void _hideKeyboard() {
+    _focusNode.unfocus();
+    // Hide keyboard on iOS
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+  }
+
   @override
   Widget build(BuildContext context) {
     // Build the TextField once and pass it as Consumer.child so it won't rebuild
@@ -54,7 +61,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
         onChanged: (v) => context.read<TTSProvider>().setText(v),
         decoration: InputDecoration(
           hintText:
-          'Enter your text here...\n\nYou can type directly or upload a file above.',
+              'Enter your text here...\n\nYou can type directly or upload a file above.',
           hintStyle: TextStyle(
             color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
             fontSize: 14,
@@ -73,8 +80,9 @@ class _TextInputPanelState extends State<TextInputPanel> {
             ),
           ),
           filled: true,
-          fillColor:
-          Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+          fillColor: Theme.of(
+            context,
+          ).colorScheme.surfaceVariant.withOpacity(0.3),
           contentPadding: const EdgeInsets.all(16),
         ),
       ),
@@ -90,7 +98,8 @@ class _TextInputPanelState extends State<TextInputPanel> {
         final providerText = ttsProvider.text;
         final controllerText = _textController.text;
 
-        if ((!_didInitialSync || (!_focusNode.hasFocus && controllerText != providerText)) &&
+        if ((!_didInitialSync ||
+                (!_focusNode.hasFocus && controllerText != providerText)) &&
             // also avoid overwriting during IME composition
             !_textController.value.composing.isValid) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -115,265 +124,338 @@ class _TextInputPanelState extends State<TextInputPanel> {
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Panel header
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
+          child: GestureDetector(
+            onTap: _hideKeyboard,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Panel header
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.edit_note,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Text Input',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const Spacer(),
+                      // live character counter tied to controller (no provider rebuild)
+                      ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: _textController,
+                        builder: (_, value, __) {
+                          final count = value.text.length;
+                          return Text(
+                            '$count chars',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer.withOpacity(0.7),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.edit_note,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Text Input',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                    const Spacer(),
-                    // live character counter tied to controller (no provider rebuild)
-                    ValueListenableBuilder<TextEditingValue>(
-                      valueListenable: _textController,
-                      builder: (_, value, __) {
-                        final count = value.text.length;
-                        return Text(
-                          '$count chars',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onPrimaryContainer
-                                .withOpacity(0.7),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
 
-              // File upload section
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.upload_file,
-                          color: Theme.of(context).colorScheme.secondary,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Upload File',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
+                // File upload section
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.upload_file,
+                            color: Theme.of(context).colorScheme.secondary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Upload File',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed:
-                        ttsProvider.isLoading ? null : ttsProvider.pickFile,
-                        icon: ttsProvider.isLoading
-                            ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                            : const Icon(Icons.upload_file),
-                        label: Text(
-                          ttsProvider.isLoading
-                              ? 'Processing...'
-                              : 'Choose PDF/TXT',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                          Theme.of(context).colorScheme.secondary,
-                          foregroundColor:
-                          Theme.of(context).colorScheme.onSecondary,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: ttsProvider.isLoading
+                              ? null
+                              : ttsProvider.pickFile,
+                          icon: ttsProvider.isLoading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.upload_file),
+                          label: Text(
+                            ttsProvider.isLoading
+                                ? 'Processing...'
+                                : 'Choose PDF/TXT',
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          elevation: 2,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.secondary,
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.onSecondary,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 2,
+                          ),
                         ),
                       ),
-                    ),
-                    
-                    // File info and error display
-                    if (ttsProvider.fileName.isNotEmpty || ttsProvider.hasError) ...[
-                      const SizedBox(height: 12),
-                      if (ttsProvider.hasError) ...[
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.errorContainer,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: Theme.of(context).colorScheme.error.withOpacity(0.3),
+
+                      // File info and error display
+                      if (ttsProvider.fileName.isNotEmpty ||
+                          ttsProvider.hasError) ...[
+                        const SizedBox(height: 12),
+                        if (ttsProvider.hasError) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.errorContainer,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.error.withOpacity(0.3),
+                              ),
                             ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.error_outline,
-                                color: Theme.of(context).colorScheme.error,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  ttsProvider.lastError ?? 'An error occurred',
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onErrorContainer,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                      ],
-                      if (ttsProvider.fileName.isNotEmpty) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .secondaryContainer,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .secondary
-                                  .withOpacity(0.3),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.file_present,
-                                color: Theme.of(context).colorScheme.secondary,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      ttsProvider.fileName,
-                                      style: TextStyle(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSecondaryContainer,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    if (ttsProvider.text.isNotEmpty) ...[
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${ttsProvider.text.length} characters loaded',
-                                        style: TextStyle(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSecondaryContainer
-                                              .withOpacity(0.7),
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: ttsProvider.clearText,
-                                icon: Icon(
-                                  Icons.close,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSecondaryContainer,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  color: Theme.of(context).colorScheme.error,
                                   size: 18,
                                 ),
-                                tooltip: 'Clear',
-                              ),
-                            ],
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    ttsProvider.lastError ??
+                                        'An error occurred',
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onErrorContainer,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(height: 8),
+                        ],
+                        if (ttsProvider.fileName.isNotEmpty) ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.secondaryContainer,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.secondary.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.file_present,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.secondary,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        ttsProvider.fileName,
+                                        style: TextStyle(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSecondaryContainer,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (ttsProvider.text.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${ttsProvider.text.length} characters loaded',
+                                          style: TextStyle(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSecondaryContainer
+                                                .withOpacity(0.7),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: ttsProvider.clearText,
+                                  icon: Icon(
+                                    Icons.close,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSecondaryContainer,
+                                    size: 18,
+                                  ),
+                                  tooltip: 'Clear',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ],
+                  ),
+                ),
+
+                // Divider
+                Divider(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                  height: 1,
+                  indent: 16,
+                  endIndent: 16,
+                ),
+
+                // Text input section (TextField is the Consumer.child, so no rebuilds)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.text_fields,
+                            color: Theme.of(context).colorScheme.tertiary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Or Type Text',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.tertiary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Use the non-listening child here
+                      child!,
+
+                      // Text management buttons
+                      if (ttsProvider.text.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                ttsProvider.clearText();
+                                _textController.clear();
+                                _focusNode.requestFocus();
+                              },
+                              icon: const Icon(Icons.clear, size: 18),
+                              label: const Text('Clear Text'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.error,
+                                side: BorderSide(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.error.withOpacity(0.5),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: _hideKeyboard,
+                              icon: const Icon(Icons.keyboard_hide, size: 18),
+                              label: const Text('Hide Keyboard'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.tertiary,
+                                side: BorderSide(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.tertiary.withOpacity(0.5),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-
-              // Divider
-              Divider(
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                height: 1,
-                indent: 16,
-                endIndent: 16,
-              ),
-
-              // Text input section (TextField is the Consumer.child, so no rebuilds)
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.text_fields,
-                          color: Theme.of(context).colorScheme.tertiary,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Or Type Text',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    // Use the non-listening child here
-                    child!,
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
