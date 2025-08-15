@@ -238,8 +238,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
             icon: Icon(
               showResume ? Icons.play_arrow : Icons.play_circle,
               color: const Color(0xFF64B5F6), // Light blue for better visibility
+              size: 20, // Smaller icon size
             ),
             onPressed: () => isCurrent ? _resumeItem() : _startItem(item),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           ),
         if (showPause)
           IconButton(
@@ -247,8 +250,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
             icon: const Icon(
               Icons.pause_circle,
               color: const Color(0xFFFFB74D), // Orange for pause
+              size: 20, // Smaller icon size
             ),
             onPressed: _pauseItem,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           ),
         if (showStop)
           IconButton(
@@ -256,8 +262,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
             icon: const Icon(
               Icons.stop_circle,
               color: const Color(0xFFEF5350), // Red for stop
+              size: 20, // Smaller icon size
             ),
             onPressed: _stopCurrent,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           ),
       ],
     );
@@ -330,7 +339,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16), // Reduced horizontal padding
             itemCount: history.length,
             itemBuilder: (context, index) {
               final item = history[index];
@@ -384,32 +393,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.all(8), // Reduced margin for better space usage
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start, // Ensure proper alignment
           children: [
             // Main content with tap to play
             GestureDetector(
               onTap: () => _startItem(item),
               child: ListTile(
                 contentPadding: const EdgeInsets.all(16),
-                title: Text(
-                  item.text.length > 100
-                      ? '${item.text.substring(0, 100)}...'
-                      : item.text,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
+                title: Flexible(
+                  child: Text(
+                    item.text.length > 100
+                        ? '${item.text.substring(0, 100)}...'
+                        : item.text,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 3, // Allow up to 3 lines for title
                   ),
                 ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 8),
+                    // First row - Voice and Rate
                     Row(
                       children: [
                         Icon(
@@ -418,30 +433,39 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           color: Colors.white.withOpacity(0.7),
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          'Voice: ${item.voiceId}',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: 12,
+                        Flexible(
+                          flex: 2,
+                          child: Text(
+                            'Voice: ${item.voiceId}',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 8), // Reduced spacing
                         Icon(
                           Icons.speed,
                           size: 16,
                           color: Colors.white.withOpacity(0.7),
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          'Rate: ${item.rate.toStringAsFixed(1)}',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: 12,
+                        Flexible(
+                          flex: 1,
+                          child: Text(
+                            'Rate: ${item.rate.toStringAsFixed(1)}',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
+                    // Second row - Pitch and Date
                     Row(
                       children: [
                         Icon(
@@ -450,25 +474,33 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           color: Colors.white.withOpacity(0.7),
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          'Pitch: ${item.pitch.toStringAsFixed(1)}',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: 12,
+                        Flexible(
+                          flex: 1,
+                          child: Text(
+                            'Pitch: ${item.pitch.toStringAsFixed(1)}',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 8), // Reduced spacing
                         Icon(
                           Icons.access_time,
                           size: 16,
                           color: Colors.white.withOpacity(0.7),
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          _formatDate(item.createdAt),
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: 12,
+                        Flexible(
+                          flex: 2,
+                          child: Text(
+                            _formatDate(item.createdAt),
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -490,6 +522,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 color: Colors.white.withOpacity(0.7),
                                 fontSize: 12,
                               ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -497,21 +530,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ],
                   ],
                 ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Expand/collapse button
-                    IconButton(
-                      onPressed: () => _toggleExpansion(item.id),
-                      icon: Icon(
-                        isExpanded ? Icons.expand_less : Icons.expand_more,
-                        color: const Color(0xFF64B5F6),
+                trailing: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 100), // Reduced from 120
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Expand/collapse button
+                      IconButton(
+                        onPressed: () => _toggleExpansion(item.id),
+                        icon: Icon(
+                          isExpanded ? Icons.expand_less : Icons.expand_more,
+                          color: const Color(0xFF64B5F6),
+                          size: 18, // Smaller icon
+                        ),
+                        tooltip: isExpanded ? 'Collapse' : 'Expand to read full text',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36), // Reduced size
                       ),
-                      tooltip: isExpanded ? 'Collapse' : 'Expand to read full text',
-                    ),
-                    // Play controls
-                    _buildControls(context, item),
-                  ],
+                      // Play controls
+                      Flexible(child: _buildControls(context, item)),
+                    ],
+                  ),
                 ),
               ),
             ),

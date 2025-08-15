@@ -1,13 +1,14 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../model/tts_history_item.dart';
+import '../services/database_service.dart';
 
 class HistoryProvider extends ChangeNotifier {
-  static const _kKey = 'tts_history_v1';
+  final DatabaseService _databaseService = DatabaseService();
   final List<TtsHistoryItem> _items = [];
 
   List<TtsHistoryItem> get items =>
       List.unmodifiable(_items..sort((a,b) => b.createdAt.compareTo(a.createdAt)));
+
   Future<void> updateFilePath(String id, String filePath) async {
     final idx = _items.indexWhere((e) => e.id == id);
     if (idx == -1) return;
@@ -24,35 +25,67 @@ class HistoryProvider extends ChangeNotifier {
     await _save();
     notifyListeners();
   }
+
   Future<void> load() async {
-    final sp = await SharedPreferences.getInstance();
-    final raw = sp.getStringList(_kKey) ?? [];
-    _items
-      ..clear()
-      ..addAll(raw.map(TtsHistoryItem.fromJson));
-    notifyListeners();
+    try {
+      final items = await _databaseService.getAllHistoryItems();
+      _items.clear();
+      _items.addAll(items);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading history: $e');
+    }
   }
 
   Future<void> _save() async {
-    final sp = await SharedPreferences.getInstance();
-    await sp.setStringList(_kKey, _items.map((e) => e.toJson()).toList());
+    try {
+      // Save to database
+      for (final item in _items) {
+        await _databaseService.insertHistoryItem(item);
+      }
+    } catch (e) {
+      debugPrint('Error saving history: $e');
+    }
   }
 
   Future<void> add(TtsHistoryItem item) async {
     _items.add(item);
-    await _save();
+    await _databaseService.insertHistoryItem(item);
     notifyListeners();
   }
 
   Future<void> remove(String id) async {
     _items.removeWhere((e) => e.id == id);
-    await _save();
+    await _databaseService.deleteHistoryItem(id);
     notifyListeners();
   }
 
   Future<void> clear() async {
     _items.clear();
-    await _save();
+    await _databaseService.clearAllHistory();
     notifyListeners();
+  }
+
+  // Search functionality
+  Future<List<TtsHistoryItem>> search(String query) async {
+    if (query.isEmpty) {
+      return items;
+    }
+    try {
+      return await _databaseService.searchHistoryItems(query);
+    } catch (e) {
+      debugPrint('Error searching history: $e');
+      return [];
+    }
+  }
+
+  // Get statistics
+  Future<Map<String, dynamic>> getStatistics() async {
+    try {
+      return await _databaseService.getStatistics();
+    } catch (e) {
+      debugPrint('Error getting statistics: $e');
+      return {'totalItems': 0};
+    }
   }
 }

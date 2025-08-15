@@ -56,6 +56,10 @@ dependencies:
   shared_preferences: ^2.5.3
   just_audio: ^0.10.4
   connectivity_plus: ^6.1.5
+  
+  # Database
+  sqflite: ^2.3.0
+  path: ^1.8.3
 
 dev_dependencies:
   flutter_test:
