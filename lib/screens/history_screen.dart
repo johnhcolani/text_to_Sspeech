@@ -221,6 +221,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _buildControls(BuildContext context, TtsHistoryItem item) {
     final isCurrent = _isCurrent(item.id);
     final ttsState = context.watch<TTSProvider>().ttsState;
+    
+    // Check if we're on a tablet
+    final isTablet = MediaQuery.of(context).size.width > 600;
 
     final isPlaying = isCurrent && ttsState == TTSState.playing;
     final isPaused = isCurrent && ttsState == TTSState.paused;
@@ -238,35 +241,44 @@ class _HistoryScreenState extends State<HistoryScreen> {
             icon: Icon(
               showResume ? Icons.play_arrow : Icons.play_circle,
               color: const Color(0xFF64B5F6), // Light blue for better visibility
-              size: 20, // Smaller icon size
+              size: isTablet ? 24 : 20, // Larger icon on tablets
             ),
             onPressed: () => isCurrent ? _resumeItem() : _startItem(item),
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            constraints: BoxConstraints(
+              minWidth: isTablet ? 40 : 32,
+              minHeight: isTablet ? 40 : 32,
+            ),
           ),
         if (showPause)
           IconButton(
             tooltip: 'Pause',
-            icon: const Icon(
+            icon: Icon(
               Icons.pause_circle,
               color: const Color(0xFFFFB74D), // Orange for pause
-              size: 20, // Smaller icon size
+              size: isTablet ? 24 : 20, // Larger icon on tablets
             ),
             onPressed: _pauseItem,
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            constraints: BoxConstraints(
+              minWidth: isTablet ? 40 : 32,
+              minHeight: isTablet ? 40 : 32,
+            ),
           ),
         if (showStop)
           IconButton(
             tooltip: 'Stop',
-            icon: const Icon(
+            icon: Icon(
               Icons.stop_circle,
               color: const Color(0xFFEF5350), // Red for stop
-              size: 20, // Smaller icon size
+              size: isTablet ? 24 : 20, // Larger icon on tablets
             ),
             onPressed: _stopCurrent,
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            constraints: BoxConstraints(
+              minWidth: isTablet ? 40 : 32,
+              minHeight: isTablet ? 40 : 32,
+            ),
           ),
       ],
     );
@@ -339,7 +351,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16), // Reduced horizontal padding
+            padding: EdgeInsets.symmetric(
+              horizontal: MediaQuery.of(context).size.width > 600 ? 16 : 8, // More padding on tablets
+              vertical: 16,
+            ),
             itemCount: history.length,
             itemBuilder: (context, index) {
               final item = history[index];
@@ -393,7 +408,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         );
       },
       child: Container(
-        margin: const EdgeInsets.all(8), // Reduced margin for better space usage
+        margin: EdgeInsets.all(MediaQuery.of(context).size.width > 600 ? 12 : 8), // More space on tablets
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
@@ -530,27 +545,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ],
                   ],
                 ),
-                trailing: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 100), // Reduced from 120
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Expand/collapse button
-                      IconButton(
-                        onPressed: () => _toggleExpansion(item.id),
-                        icon: Icon(
-                          isExpanded ? Icons.expand_less : Icons.expand_more,
-                          color: const Color(0xFF64B5F6),
-                          size: 18, // Smaller icon
-                        ),
-                        tooltip: isExpanded ? 'Collapse' : 'Expand to read full text',
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36), // Reduced size
+                trailing: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Use more space on larger screens (tablets)
+                    final isTablet = MediaQuery.of(context).size.width > 600;
+                    final maxWidth = isTablet ? 140.0 : 100.0;
+                    
+                    return ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: maxWidth),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Expand/collapse button
+                          IconButton(
+                            onPressed: () => _toggleExpansion(item.id),
+                            icon: Icon(
+                              isExpanded ? Icons.expand_less : Icons.expand_more,
+                              color: const Color(0xFF64B5F6),
+                              size: isTablet ? 20 : 18, // Larger icon on tablets
+                            ),
+                            tooltip: isExpanded ? 'Collapse' : 'Expand to read full text',
+                            padding: EdgeInsets.zero,
+                            constraints: BoxConstraints(
+                              minWidth: isTablet ? 40 : 36,
+                              minHeight: isTablet ? 40 : 36,
+                            ),
+                          ),
+                          // Play controls
+                          Flexible(child: _buildControls(context, item)),
+                        ],
                       ),
-                      // Play controls
-                      Flexible(child: _buildControls(context, item)),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ),
             ),
