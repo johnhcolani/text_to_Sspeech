@@ -50,7 +50,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     // First check if the device supports file synthesis
     final supportsFileSynthesis = await tts.isFileSynthesisSupported();
-    
+
     if (!supportsFileSynthesis) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -72,7 +72,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-      
+
       // Play directly with TTS instead of trying to save
       await _startItem(item);
       return;
@@ -85,7 +85,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       rate: item.rate,
       pitch: item.pitch,
     );
-    
+
     if (path == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -107,7 +107,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-      
+
       // Fallback to live TTS
       await _startItem(item);
       return;
@@ -117,9 +117,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     await hp.updateFilePath(item.id, path);
 
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
@@ -138,7 +136,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         behavior: SnackBarBehavior.floating,
       ),
     );
-    
+
     final updated = hp.items.firstWhere(
       (e) => e.id == item.id,
       orElse: () => item,
@@ -149,6 +147,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Future<void> _startItem(TtsHistoryItem item) async {
     // Stop any current playback
     await _stopCurrent();
+
+    // Set the current ID FIRST, before starting playback
+    if (mounted) {
+      setState(() {
+        _currentId = item.id;
+      });
+
+      // Small delay to ensure UI rebuilds
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
 
     final tts = context.read<TTSProvider>();
 
@@ -166,10 +174,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       // Fallback to TTS synthesis
       await tts.speak();
     }
-
-    setState(() {
-      _currentId = item.id;
-    });
   }
 
   Future<void> _pauseItem() async {
@@ -183,7 +187,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       await tts.pause();
     }
 
-    setState(() {}); // refresh buttons
+    if (mounted) {
+      setState(() {}); // refresh buttons
+    }
   }
 
   Future<void> _resumeItem() async {
@@ -197,7 +203,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       await tts.resume();
     }
 
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _stopCurrent() async {
@@ -211,9 +219,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       await tts.stop();
     }
 
-    setState(() {
-      _currentId = null;
-    });
+    if (mounted) {
+      setState(() {
+        _currentId = null;
+      });
+    }
   }
 
   bool _isCurrent(String id) => _currentId == id;
@@ -222,24 +232,31 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final isCurrent = _isCurrent(item.id);
     final ttsState = context.watch<TTSProvider>().ttsState;
 
-    final isPlaying = isCurrent && ttsState == TTSState.playing;
+    // Treat continued state the same as playing for button logic
+    final isPlaying =
+        isCurrent &&
+        (ttsState == TTSState.playing || ttsState == TTSState.continued);
     final isPaused = isCurrent && ttsState == TTSState.paused;
 
+    // Show buttons based on state
+    final showPlay = !isCurrent || (isCurrent && ttsState == TTSState.stopped);
     final showPause = isPlaying;
     final showResume = isPaused;
-    final showStop = isCurrent;
+    final showStop = isPlaying || isPaused; // Show stop when playing or paused
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (!isCurrent || showResume)
+        if (showPlay)
           IconButton(
-            tooltip: showResume ? 'Resume' : 'Play',
-            icon: Icon(
-              showResume ? Icons.play_arrow : Icons.play_circle,
-              color: const Color(0xFF64B5F6), // Light blue for better visibility
+            tooltip: 'Play',
+            icon: const Icon(
+              Icons.play_circle,
+              color: const Color(
+                0xFF64B5F6,
+              ), // Light blue for better visibility
             ),
-            onPressed: () => isCurrent ? _resumeItem() : _startItem(item),
+            onPressed: () => _startItem(item),
           ),
         if (showPause)
           IconButton(
@@ -249,6 +266,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
               color: const Color(0xFFFFB74D), // Orange for pause
             ),
             onPressed: _pauseItem,
+          ),
+        if (showResume)
+          IconButton(
+            tooltip: 'Resume',
+            icon: const Icon(
+              Icons.play_arrow,
+              color: const Color(0xFF64B5F6), // Light blue for resume
+            ),
+            onPressed: _resumeItem,
           ),
         if (showStop)
           IconButton(
@@ -354,7 +380,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     HistoryProvider historyProvider,
   ) {
     final isExpanded = _isExpanded(item.id);
-    
+
     return Dismissible(
       key: Key(item.id),
       direction: DismissDirection.endToStart,
@@ -365,11 +391,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           color: Colors.red,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Icon(
-          Icons.delete,
-          color: Colors.white,
-          size: 30,
-        ),
+        child: const Icon(Icons.delete, color: Colors.white, size: 30),
       ),
       confirmDismiss: (direction) async {
         return await _showDeleteDialog(context, item, historyProvider);
@@ -507,7 +529,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         isExpanded ? Icons.expand_less : Icons.expand_more,
                         color: const Color(0xFF64B5F6),
                       ),
-                      tooltip: isExpanded ? 'Collapse' : 'Expand to read full text',
+                      tooltip: isExpanded
+                          ? 'Collapse'
+                          : 'Expand to read full text',
                     ),
                     // Play controls
                     _buildControls(context, item),
@@ -515,7 +539,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
               ),
             ),
-            
+
             // Expanded text section
             if (isExpanded) ...[
               Container(

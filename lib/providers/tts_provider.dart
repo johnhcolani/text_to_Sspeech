@@ -334,11 +334,14 @@ class TTSProvider extends ChangeNotifier {
 
       // Event handlers
       _tts.setStartHandler(() {
-        _ttsState = TTSState.playing;
-        _progressActive = true;
-        _clearError();
-        _startWordHighlighting();
-        notifyListeners();
+        // Only update state if we're not already playing (prevents conflicts with immediate state setting)
+        if (_ttsState != TTSState.playing) {
+          _ttsState = TTSState.playing;
+          _progressActive = true;
+          _clearError();
+          _startWordHighlighting();
+          notifyListeners();
+        }
       });
       _tts.setCompletionHandler(() {
         _ttsState = TTSState.stopped;
@@ -358,7 +361,7 @@ class TTSProvider extends ChangeNotifier {
         notifyListeners();
       });
       _tts.setContinueHandler(() {
-        _ttsState = TTSState.continued;
+        _ttsState = TTSState.playing; // Changed from continued to playing
         _startWordHighlighting();
         notifyListeners();
       });
@@ -683,12 +686,24 @@ class TTSProvider extends ChangeNotifier {
       await _tts.setSpeechRate(_rate);
       await _tts.setPitch(_pitch);
       await _tts.setVolume(_volume);
+
+      // Set state to playing immediately so UI shows pause button right away
+      _ttsState = TTSState.playing;
+      _progressActive = true;
+      _startWordHighlighting();
+      notifyListeners();
+
       debugPrint('TTS: Calling flutter_tts.speak()');
       await _tts.speak(toSay);
       debugPrint('TTS: speak() called successfully');
     } catch (e) {
       _setError('Failed to start speech: ${e.toString()}');
       debugPrint('Error speaking: $e');
+      // Reset state on error
+      _ttsState = TTSState.stopped;
+      _progressActive = false;
+      _stopWordHighlighting();
+      notifyListeners();
     }
   }
 
@@ -703,16 +718,33 @@ class TTSProvider extends ChangeNotifier {
       await _tts.setSpeechRate(_rate);
       await _tts.setPitch(_pitch);
       await _tts.setVolume(_volume);
+
+      // Set state to playing immediately so UI shows pause button right away
+      _ttsState = TTSState.playing;
+      _progressActive = true;
+      _startWordHighlighting();
+      notifyListeners();
+
       await _tts.speak(toSay);
     } catch (e) {
       _setError('Failed to speak text: ${e.toString()}');
       debugPrint('Error speaking (playText): $e');
+      // Reset state on error
+      _ttsState = TTSState.stopped;
+      _progressActive = false;
+      _stopWordHighlighting();
+      notifyListeners();
     }
   }
 
   Future<void> stop() async {
     try {
       await _tts.stop();
+      // Update state to stopped
+      _ttsState = TTSState.stopped;
+      _progressActive = false;
+      _stopWordHighlighting();
+      notifyListeners();
     } catch (e) {
       debugPrint('Error stopping: $e');
     }
@@ -722,8 +754,14 @@ class TTSProvider extends ChangeNotifier {
     try {
       if (Platform.isIOS || Platform.isMacOS) {
         await _tts.pause(); // supported on Apple platforms
+        // State will be updated by the pause handler
       } else {
         await _tts.stop(); // Android: no real pause → stop instead
+        // Update state to stopped since we can't pause on Android
+        _ttsState = TTSState.stopped;
+        _progressActive = false;
+        _stopWordHighlighting();
+        notifyListeners();
       }
     } catch (e) {
       debugPrint('Error pausing: $e');
@@ -733,10 +771,20 @@ class TTSProvider extends ChangeNotifier {
   Future<void> resume() async {
     try {
       if (Platform.isIOS || Platform.isMacOS) {
-        // flutter_tts uses "continueSpeak" on Apple platforms
-        final dynamic tts =
-            _tts; // call dynamically so it compiles on all platforms
-        await tts.continueSpeak();
+        // Try to use continueSpeak if available
+        try {
+          final dynamic tts = _tts;
+          await tts.continueSpeak();
+          // State will be updated by the continue handler
+        } catch (e) {
+          debugPrint(
+            'continueSpeak not available, falling back to restart: $e',
+          );
+          // Fallback: restart from the beginning
+          if (_text.isNotEmpty) {
+            await speak();
+          }
+        }
       } else {
         // Android: no resume; restart from the beginning
         if (_text.isNotEmpty) {
