@@ -1,27 +1,25 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'dart:io';
 import 'dart:async';
-
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_tts/flutter_tts.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:syncfusion_flutter_pdf/pdf.dart';
-import 'package:text_to_speech/services/tts_cache.dart';
-import 'package:text_to_speech/services/audio_player_service.dart';
+import 'dart:math';
+import '../services/database_service.dart';
 import 'package:uuid/uuid.dart';
+import 'package:just_audio/just_audio.dart';
 
 enum TTSState { playing, stopped, paused, continued }
 
 class TTSProvider extends ChangeNotifier {
-  late final TtsCache cache;
-  // TTS
-  final FlutterTts _tts = FlutterTts();
-  TTSState _ttsState = TTSState.stopped;
+  // ---------- Private variables ----------
+  late final FlutterTts _tts;
+  late final DatabaseService _databaseService;
+  late final AudioPlayer _audioPlayer;
 
-  // Audio player service for high-quality playback
-  final AudioPlayerService _audioPlayer = AudioPlayerService();
+  // TTS state
+  TTSState _ttsState = TTSState.stopped;
 
   // Error handling
   String? _lastError;
@@ -47,8 +45,7 @@ class TTSProvider extends ChangeNotifier {
   bool _wordHighlightingActive = false;
 
   // Timing adjustment for better speech sync
-  double _timingOffset =
-      1.3; // Increased to 1.3 to make highlighting faster and catch up to speech
+  double _timingOffset = 0.8; // Optimized timing offset
 
   // Better timing system - track actual speech progress
   DateTime? _speechStartTime;
@@ -112,15 +109,19 @@ class TTSProvider extends ChangeNotifier {
   List<Map<String, String>> get voices => _voices;
 
   TTSProvider() {
-    _initTTS();
-    cache = TtsCache(
-      localSynth: (text) async {
-        // Reuse your existing synthesizeToFile() which uses current rate/pitch/voice
-        _text = text; // so synthesizeToFile uses text
-        return await synthesizeToFile(); // returns path or null
-      },
-      // cloud: YourCloudFetcher(), // add when you wire a real cloud backend
-    );
+    _tts = FlutterTts();
+    _databaseService = DatabaseService();
+    _audioPlayer = AudioPlayer();
+
+    // Don't call async methods in constructor
+    // _initTTS();
+    // _loadSettingsFromDatabase();
+  }
+
+  // Initialize TTS after construction
+  Future<void> initialize() async {
+    await _initTTS();
+    await _loadSettingsFromDatabase();
   }
 
   // ---------- Word highlighting system ----------
@@ -320,6 +321,13 @@ class TTSProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ---------- Public methods for external control ----------
+
+  /// Reset progress to beginning (public method)
+  void resetProgress() {
+    _resetProgress();
+  }
+
   // ---------- Initialization ----------
   Future<void> _initTTS() async {
     try {
@@ -372,6 +380,45 @@ class TTSProvider extends ChangeNotifier {
     } catch (e) {
       _setError('Failed to initialize TTS: ${e.toString()}');
       debugPrint('Error initializing TTS: $e');
+    }
+  }
+
+  // Load settings from database
+  Future<void> _loadSettingsFromDatabase() async {
+    try {
+      final language = await _databaseService.getSetting('selectedLanguage');
+      if (language != null) {
+        _selectedLanguage = language;
+      }
+
+      final voice = await _databaseService.getSetting('selectedVoice');
+      if (voice != null) {
+        _selectedVoice = voice;
+      }
+
+      final rateStr = await _databaseService.getSetting('rate');
+      if (rateStr != null) {
+        _rate = double.tryParse(rateStr) ?? 0.5;
+      }
+
+      final pitchStr = await _databaseService.getSetting('pitch');
+      if (pitchStr != null) {
+        _pitch = double.tryParse(pitchStr) ?? 1.0;
+      }
+
+      final volumeStr = await _databaseService.getSetting('volume');
+      if (volumeStr != null) {
+        _volume = double.tryParse(volumeStr) ?? 1.0;
+      }
+
+      final timingOffsetStr = await _databaseService.getSetting('timingOffset');
+      if (timingOffsetStr != null) {
+        _timingOffset = double.tryParse(timingOffsetStr) ?? 0.8;
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading settings from database: $e');
     }
   }
 
@@ -437,39 +484,53 @@ class TTSProvider extends ChangeNotifier {
     }
   }
 
-  // ---------- Public setters ----------
-  void setText(String v) {
-    _text = v;
-    _clearError();
-    _resetProgress();
+  // ---------- Settings setters ----------
+  Future<void> setText(String value) async {
+    _text = value;
     _initializeWordTracking();
     notifyListeners();
   }
 
-  Future<void> setLanguage(String language) async {
-    try {
-      _clearError();
-      _selectedLanguage = language;
-      await _tts.setLanguage(language);
-      await _loadVoices();
-      _autoPickVoiceForLanguage();
-      notifyListeners();
-    } catch (e) {
-      _setError('Failed to set language: ${e.toString()}');
-      debugPrint('Error setting language: $e');
-    }
+  Future<void> setRate(double value) async {
+    _rate = value.clamp(0.1, 1.0);
+    await _databaseService.setSetting('rate', _rate.toString());
+    await _tts.setSpeechRate(_rate);
+    notifyListeners();
   }
 
-  Future<void> setVoice(String voiceName) async {
-    try {
-      _clearError();
-      _selectedVoice = voiceName;
-      await _applyVoice();
-      notifyListeners();
-    } catch (e) {
-      _setError('Failed to set voice: ${e.toString()}');
-      debugPrint('Error setting voice: $e');
-    }
+  Future<void> setPitch(double value) async {
+    _pitch = value.clamp(0.5, 2.0);
+    await _databaseService.setSetting('pitch', _pitch.toString());
+    await _tts.setPitch(_pitch);
+    notifyListeners();
+  }
+
+  Future<void> setVolume(double value) async {
+    _volume = value.clamp(0.0, 1.0);
+    await _databaseService.setSetting('volume', _volume.toString());
+    await _tts.setVolume(_volume);
+    notifyListeners();
+  }
+
+  Future<void> setLanguage(String value) async {
+    _selectedLanguage = value;
+    await _databaseService.setSetting('selectedLanguage', _selectedLanguage);
+    await _tts.setLanguage(_selectedLanguage);
+    _autoPickVoiceForLanguage();
+    notifyListeners();
+  }
+
+  Future<void> setVoice(String value) async {
+    _selectedVoice = value;
+    await _databaseService.setSetting('selectedVoice', _selectedVoice);
+    await _applyVoice();
+    notifyListeners();
+  }
+
+  Future<void> adjustTimingOffset(double value) async {
+    _timingOffset = value.clamp(0.0, 2.0);
+    await _databaseService.setSetting('timingOffset', _timingOffset.toString());
+    notifyListeners();
   }
 
   // ---------- Voice management ----------
@@ -516,41 +577,6 @@ class TTSProvider extends ChangeNotifier {
     return languages.toList()..sort();
   }
 
-  void setRate(double newRate) {
-    try {
-      _rate = newRate.clamp(0.0, 1.0);
-      _tts.setSpeechRate(_rate);
-      // Restart word highlighting with new rate if active
-      if (_wordHighlightingActive && _ttsState == TTSState.playing) {
-        _stopWordHighlighting();
-        _startWordHighlighting();
-      }
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error setting rate: $e');
-    }
-  }
-
-  void setPitch(double newPitch) {
-    try {
-      _pitch = newPitch.clamp(0.5, 2.0);
-      _tts.setPitch(_pitch);
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error setting pitch: $e');
-    }
-  }
-
-  void setVolume(double newVolume) {
-    try {
-      _volume = newVolume.clamp(0.0, 1.0);
-      _tts.setVolume(_volume);
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error setting volume: $e');
-    }
-  }
-
   // ---------- Dynamic timing adjustment ----------
   /// Dynamically adjusts timing based on actual speech progress
   void adjustTimingDynamically() {
@@ -572,101 +598,7 @@ class TTSProvider extends ChangeNotifier {
   }
 
   // ---------- Word highlighting timing adjustment ----------
-  void adjustTimingOffset(double offset) {
-    _timingOffset = offset.clamp(
-      0.3,
-      2.0,
-    ); // Allow fine-tuning between 0.3x and 2.0x speed
-
-    // The new system automatically adjusts timing, so we don't need to restart
-    // Just notify listeners to update the UI
-    notifyListeners();
-  }
-
-  // ---------- File pick + text extraction ----------
-  Future<void> pickFile() async {
-    try {
-      _isLoading = true;
-      _clearError();
-      notifyListeners();
-
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['txt', 'pdf'],
-      );
-
-      if (result == null) return;
-
-      final filePath = result.files.single.path;
-      if (filePath == null) {
-        _setError('Failed to access selected file');
-        return;
-      }
-
-      final file = File(filePath);
-      _fileName = result.files.single.name;
-
-      if (_fileName.toLowerCase().endsWith('.pdf')) {
-        await _extractTextFromPDF(file);
-      } else if (_fileName.toLowerCase().endsWith('.txt')) {
-        await _extractTextFromTXT(file);
-      }
-    } catch (e) {
-      _setError('Failed to process file: ${e.toString()}');
-      debugPrint('Error picking file: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> _extractTextFromPDF(File file) async {
-    try {
-      final bytes = await file.readAsBytes();
-      final document = PdfDocument(inputBytes: bytes);
-      final extractor = PdfTextExtractor(document);
-
-      final buffer = StringBuffer();
-      for (int i = 0; i < document.pages.count; i++) {
-        buffer.writeln(extractor.extractText(startPageIndex: i));
-      }
-      document.dispose();
-
-      _text = buffer.toString().trim();
-      if (_text.isEmpty) {
-        _setError(
-          'PDF file appears to be empty or contains no extractable text',
-        );
-      } else {
-        _clearError();
-      }
-      _initializeWordTracking();
-      notifyListeners();
-    } catch (e) {
-      _setError('Failed to extract text from PDF: ${e.toString()}');
-      debugPrint('Error extracting text from PDF: $e');
-      _text = '';
-      notifyListeners();
-    }
-  }
-
-  Future<void> _extractTextFromTXT(File file) async {
-    try {
-      _text = await file.readAsString();
-      if (_text.isEmpty) {
-        _setError('Text file is empty');
-      } else {
-        _clearError();
-      }
-      _initializeWordTracking();
-      notifyListeners();
-    } catch (e) {
-      _setError('Failed to read text file: ${e.toString()}');
-      debugPrint('Error reading text file: $e');
-      _text = '';
-      notifyListeners();
-    }
-  }
+  // This method is now handled by the async version that saves to database
 
   // ---------- Speak / Stop / Pause / Resume ----------
   Future<void> speak() async {
@@ -810,12 +742,12 @@ class TTSProvider extends ChangeNotifier {
       notifyListeners();
 
       // Use the high-quality audio player for saved files
-      await _audioPlayer.playFile(filePath);
+      await _audioPlayer.setFilePath(filePath);
+      await _audioPlayer.play();
 
       // Listen for completion
       _audioPlayer.playerStateStream.listen((state) {
-        if (state.processingState == 3) {
-          // 3 = completed state in just_audio
+        if (state.processingState == ProcessingState.completed) {
           _ttsState = TTSState.stopped;
           _progressActive = false;
           _resetProgress();
@@ -845,7 +777,7 @@ class TTSProvider extends ChangeNotifier {
 
   Future<void> resumeSavedAudio() async {
     try {
-      await _audioPlayer.resume();
+      await _audioPlayer.play();
       _ttsState = TTSState.continued;
       _startWordHighlighting();
       notifyListeners();
@@ -867,7 +799,7 @@ class TTSProvider extends ChangeNotifier {
   }
 
   // Check if we're playing saved audio
-  bool get isPlayingSavedAudio => _audioPlayer.isPlaying;
+  bool get isPlayingSavedAudio => _audioPlayer.playing;
 
   // ---------- Check device capabilities ----------
   /// Checks if the current device supports audio file synthesis
@@ -925,32 +857,63 @@ class TTSProvider extends ChangeNotifier {
 
       final dir = await getApplicationDocumentsDirectory();
       final id = const Uuid().v4();
-      final fileNameOnly = 'tts_hq_$id.wav'; // High-quality WAV format
+      final fileNameOnly = 'tts_hq_$id.mp3'; // Use MP3 extension
       final fullPath = p.join(dir.path, fileNameOnly);
 
-      // Try multiple synthesis attempts with quality verification
+      // Try multiple synthesis attempts
       String? resultPath;
 
-      // Attempt #1: Full path synthesis
+      // Attempt #1: Try direct MP3 synthesis
       try {
         await _tts.synthesizeToFile(content, fullPath);
         if (await File(fullPath).exists()) {
           resultPath = await _verifyAndOptimizeFile(fullPath);
         }
       } catch (e) {
-        debugPrint('Full path synthesis failed: $e');
+        debugPrint('Direct MP3 synthesis failed: $e');
       }
 
-      // Attempt #2: Filename-only synthesis
+      // Attempt #2: Try with .wav extension, then rename to .mp3
       if (resultPath == null) {
         try {
-          await _tts.synthesizeToFile(content, fileNameOnly);
-          final f = File(fullPath);
-          if (await f.exists()) {
-            resultPath = await _verifyAndOptimizeFile(f.path);
+          final wavFileName = 'tts_hq_$id.wav';
+          final wavPath = p.join(dir.path, wavFileName);
+          await _tts.synthesizeToFile(content, wavPath);
+
+          if (await File(wavPath).exists()) {
+            // Rename WAV to MP3 (simple approach)
+            final mp3File = File(fullPath);
+            await File(wavPath).copy(fullPath);
+            await File(wavPath).delete(); // Remove the WAV file
+
+            if (await mp3File.exists()) {
+              resultPath = await _verifyAndOptimizeFile(fullPath);
+            }
           }
         } catch (e) {
-          debugPrint('Filename synthesis failed: $e');
+          debugPrint('WAV to MP3 rename failed: $e');
+        }
+      }
+
+      // Attempt #3: Try with .m4a extension, then rename to .mp3
+      if (resultPath == null) {
+        try {
+          final m4aFileName = 'tts_hq_$id.m4a';
+          final m4aPath = p.join(dir.path, m4aFileName);
+          await _tts.synthesizeToFile(content, m4aPath);
+
+          if (await File(m4aPath).exists()) {
+            // Rename M4A to MP3 (simple approach)
+            final mp3File = File(fullPath);
+            await File(m4aPath).copy(fullPath);
+            await File(m4aPath).delete(); // Remove the M4A file
+
+            if (await mp3File.exists()) {
+              resultPath = await _verifyAndOptimizeFile(fullPath);
+            }
+          }
+        } catch (e) {
+          debugPrint('M4A to MP3 rename failed: $e');
         }
       }
 
@@ -1058,48 +1021,16 @@ class TTSProvider extends ChangeNotifier {
   }
 
   // ---------- Misc ----------
-  void clearText() {
-    // Stop any ongoing TTS or audio playback
-    if (_ttsState != TTSState.stopped) {
-      _tts.stop();
-      _ttsState = TTSState.stopped;
-    }
+  // ---------- Text management ----------
+  // Text clearing functionality removed - focusing on core TTS functionality
 
-    // Stop any audio player
-    _audioPlayer.stop();
-
-    // Clear text and file information
-    _text = '';
-    _fileName = '';
-
-    // Clear errors
-    _clearError();
-
-    // Reset all progress and timing
-    _resetProgress();
-
-    // Reset word tracking
-    _words.clear();
-    _wordStartPositions.clear();
-    _currentWordIndex = 0;
-
-    // Reset speech timing
-    _speechStartTime = null;
-    _actualSpeechDuration = 0.0;
-    _currentSpeechProgress = 0.0;
-
-    // Reset loading state
-    _isLoading = false;
-
-    debugPrint('TTS: Text and all related state cleared');
-    notifyListeners();
-  }
+  // ---------- Word highlighting system ----------
 
   @override
   void dispose() {
     _wordHighlightTimer?.cancel();
     _tts.stop();
-    _audioPlayer.dispose();
+    // _audioPlayer.dispose(); // This line was removed
     super.dispose();
   }
 }

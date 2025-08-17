@@ -1,13 +1,15 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../model/tts_history_item.dart';
+import '../services/database_service.dart';
 
 class HistoryProvider extends ChangeNotifier {
-  static const _kKey = 'tts_history_v1';
+  final DatabaseService _databaseService = DatabaseService();
   final List<TtsHistoryItem> _items = [];
 
-  List<TtsHistoryItem> get items =>
-      List.unmodifiable(_items..sort((a,b) => b.createdAt.compareTo(a.createdAt)));
+  List<TtsHistoryItem> get items => List.unmodifiable(
+    _items..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
+  );
+
   Future<void> updateFilePath(String id, String filePath) async {
     final idx = _items.indexWhere((e) => e.id == id);
     if (idx == -1) return;
@@ -24,18 +26,49 @@ class HistoryProvider extends ChangeNotifier {
     await _save();
     notifyListeners();
   }
+
   Future<void> load() async {
-    final sp = await SharedPreferences.getInstance();
-    final raw = sp.getStringList(_kKey) ?? [];
-    _items
-      ..clear()
-      ..addAll(raw.map(TtsHistoryItem.fromJson));
-    notifyListeners();
+    try {
+      final raw = await _databaseService.getHistoryItems();
+      _items
+        ..clear()
+        ..addAll(
+          raw.map(
+            (e) => TtsHistoryItem(
+              id: e['id'] as String,
+              text: e['text'] as String,
+              filePath: e['filePath'] as String?,
+              voiceId: e['voiceId'] as String,
+              rate: e['rate'] as double,
+              pitch: e['pitch'] as double,
+              createdAt: DateTime.fromMillisecondsSinceEpoch(
+                e['timestamp'] as int,
+              ),
+            ),
+          ),
+        );
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading history from database: $e');
+    }
   }
 
   Future<void> _save() async {
-    final sp = await SharedPreferences.getInstance();
-    await sp.setStringList(_kKey, _items.map((e) => e.toJson()).toList());
+    try {
+      for (final item in _items) {
+        await _databaseService.insertHistoryItem({
+          'id': item.id,
+          'text': item.text,
+          'filePath': item.filePath,
+          'voiceId': item.voiceId,
+          'rate': item.rate,
+          'pitch': item.pitch,
+          'timestamp': item.createdAt.millisecondsSinceEpoch,
+        });
+      }
+    } catch (e) {
+      debugPrint('Error saving history to database: $e');
+    }
   }
 
   Future<void> add(TtsHistoryItem item) async {
@@ -46,13 +79,13 @@ class HistoryProvider extends ChangeNotifier {
 
   Future<void> remove(String id) async {
     _items.removeWhere((e) => e.id == id);
-    await _save();
+    await _databaseService.deleteHistoryItem(id);
     notifyListeners();
   }
 
   Future<void> clear() async {
     _items.clear();
-    await _save();
+    await _databaseService.clearHistory();
     notifyListeners();
   }
 }

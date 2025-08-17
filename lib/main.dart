@@ -7,11 +7,16 @@ import 'screens/history_screen.dart';
 import 'screens/settings_screen.dart';
 import 'providers/tts_provider.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  final ttsProvider = TTSProvider();
+  await ttsProvider.initialize();
+  
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => TTSProvider()),
+        ChangeNotifierProvider.value(value: ttsProvider),
         ChangeNotifierProvider(create: (_) => HistoryProvider()..load()),
       ],
       child: const MyApp(),
@@ -45,7 +50,7 @@ class MyApp extends StatelessWidget {
           // Accessibility improvements
           visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
-        home: const SplashScreen(),
+        home: const SplashScreen(), // Restored original splash screen
         routes: {
           '/home': (context) => const HomeScreen(),
           '/history': (context) => const HistoryScreen(),

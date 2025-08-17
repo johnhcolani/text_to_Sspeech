@@ -4,8 +4,46 @@ import 'dart:io';
 import 'package:provider/provider.dart';
 import '../providers/tts_provider.dart';
 
-class VoiceSettingsPanel extends StatelessWidget {
+class VoiceSettingsPanel extends StatefulWidget {
   const VoiceSettingsPanel({super.key});
+
+  @override
+  State<VoiceSettingsPanel> createState() => _VoiceSettingsPanelState();
+}
+
+class _VoiceSettingsPanelState extends State<VoiceSettingsPanel> {
+  String _getUniqueVoiceValue(
+    String selectedVoice,
+    List<Map<String, dynamic>> voices,
+  ) {
+    if (voices.isEmpty || selectedVoice.isEmpty) {
+      return voices.isNotEmpty ? '${voices.first['name'] ?? 'Unknown'}_0' : 'Unknown_0';
+    }
+    
+    try {
+      final selectedVoiceEntry = voices.asMap().entries.firstWhere(
+        (entry) => entry.value['name'] == selectedVoice,
+        orElse: () =>
+            MapEntry<int, Map<String, dynamic>>(-1, <String, dynamic>{}),
+      );
+      if (selectedVoiceEntry.key != -1) {
+        final voice = voices[selectedVoiceEntry.key];
+        final voiceName = voice['name']?.toString() ?? 'Unknown';
+        return '${voiceName}_${selectedVoiceEntry.key}';
+      }
+      
+      // If selected voice not found, return the first available voice
+      if (voices.isNotEmpty) {
+        final firstVoice = voices.first;
+        final voiceName = firstVoice['name']?.toString() ?? 'Unknown';
+        return '${voiceName}_0';
+      }
+    } catch (e) {
+      debugPrint('Error in _getUniqueVoiceValue: $e');
+    }
+    
+    return 'Unknown_0'; // Last resort fallback
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -164,7 +202,9 @@ class VoiceSettingsPanel extends StatelessWidget {
                               children: [
                                 Expanded(
                                   child: DropdownButtonFormField<String>(
-                                    value: ttsProvider.selectedVoice,
+                                    value: ttsProvider.voices.isNotEmpty 
+                                        ? _getUniqueVoiceValue(ttsProvider.selectedVoice, ttsProvider.voices)
+                                        : null,
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 11,
@@ -213,12 +253,19 @@ class VoiceSettingsPanel extends StatelessWidget {
                                                 6, // Further reduced from 8
                                           ),
                                     ),
-                                    items: ttsProvider.voices.map((voice) {
+                                    items: ttsProvider.voices.asMap().entries.map((
+                                      entry,
+                                    ) {
+                                      final index = entry.key;
+                                      final voice = entry.value;
                                       String voiceName =
                                           voice['name'] ?? 'Unknown';
                                       String locale = voice['locale'] ?? '';
+                                      // Create unique identifier by combining name and index
+                                      String uniqueValue =
+                                          '${voiceName}_$index';
                                       return DropdownMenuItem<String>(
-                                        value: voiceName,
+                                        value: uniqueValue,
                                         child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
@@ -253,7 +300,11 @@ class VoiceSettingsPanel extends StatelessWidget {
                                     }).toList(),
                                     onChanged: (String? newValue) {
                                       if (newValue != null) {
-                                        ttsProvider.setVoice(newValue);
+                                        // Extract the actual voice name from the unique identifier
+                                        final voiceName = newValue
+                                            .split('_')
+                                            .first;
+                                        ttsProvider.setVoice(voiceName);
                                       }
                                     },
                                   ),

@@ -84,7 +84,9 @@ class _TextInputPanelState extends State<TextInputPanel> {
             ),
           ),
           filled: true,
-          fillColor: Colors.white.withOpacity(0.05), // Very light white background
+          fillColor: Colors.white.withOpacity(
+            0.05,
+          ), // Very light white background
           contentPadding: const EdgeInsets.all(16),
         ),
       ),
@@ -116,7 +118,9 @@ class _TextInputPanelState extends State<TextInputPanel> {
 
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1), // Changed to white with low opacity
+            color: Colors.white.withOpacity(
+              0.1,
+            ), // Changed to white with low opacity
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: Colors.white.withOpacity(0.2), // Added white border
@@ -124,7 +128,9 @@ class _TextInputPanelState extends State<TextInputPanel> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2), // Increased shadow opacity
+                color: Colors.black.withOpacity(
+                  0.2,
+                ), // Increased shadow opacity
                 blurRadius: 15,
                 offset: const Offset(0, 5),
               ),
@@ -142,7 +148,9 @@ class _TextInputPanelState extends State<TextInputPanel> {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF64B5F6).withOpacity(0.2), // Light blue with opacity
+                    color: const Color(
+                      0xFF64B5F6,
+                    ).withOpacity(0.2), // Light blue with opacity
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(20),
                       topRight: Radius.circular(20),
@@ -174,7 +182,9 @@ class _TextInputPanelState extends State<TextInputPanel> {
                             '$count chars',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.white.withOpacity(0.8), // White with opacity
+                              color: Colors.white.withOpacity(
+                                0.8,
+                              ), // White with opacity
                             ),
                           );
                         },
@@ -210,142 +220,47 @@ class _TextInputPanelState extends State<TextInputPanel> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: ttsProvider.isLoading
-                              ? null
-                              : ttsProvider.pickFile,
-                          icon: ttsProvider.isLoading
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white), // White loading indicator
-                                  ),
-                                )
-                              : const Icon(Icons.upload_file),
-                          label: Text(
-                            ttsProvider.isLoading
-                                ? 'Processing...'
-                                : 'Choose PDF/TXT',
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white, // Always white text for readability
-                              fontSize: 14,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white, // White text and icon
-                            side: BorderSide(
-                              color: const Color(0xFF64B5F6), // Blue border
-                              width: 2,
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
+                      // File picker removed - focusing on core TTS functionality
+                      // Text input is the primary way to add content
 
                       // File info and error display
-                      if (ttsProvider.fileName.isNotEmpty ||
-                          ttsProvider.hasError) ...[
+                      if (ttsProvider.hasError) ...[
                         const SizedBox(height: 12),
-                        if (ttsProvider.hasError) ...[
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEF5350).withOpacity(0.2), // Red with opacity
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(0xFFEF5350).withOpacity(0.4), // Red border
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.error_outline,
-                                  color: const Color(0xFFEF5350), // Red icon
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    ttsProvider.lastError ??
-                                        'An error occurred',
-                                    style: TextStyle(
-                                      color: Colors.white, // White text
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFFEF5350,
+                            ).withOpacity(0.2), // Red with opacity
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: const Color(
+                                0xFFEF5350,
+                              ).withOpacity(0.4), // Red border
                             ),
                           ),
-                          const SizedBox(height: 8),
-                        ],
-                        if (ttsProvider.fileName.isNotEmpty) ...[
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF64B5F6).withOpacity(0.2), // Light blue with opacity
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(0xFF64B5F6).withOpacity(0.4), // Light blue border
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: const Color(0xFFEF5350), // Red icon
+                                size: 18,
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.file_present,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.secondary,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        ttsProvider.fileName,
-                                        style: TextStyle(
-                                          color: Colors.white, // White text
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      if (ttsProvider.text.isNotEmpty) ...[
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '${ttsProvider.text.length} characters loaded',
-                                          style: TextStyle(
-                                            color: Colors.white.withOpacity(0.7), // White with opacity
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  ttsProvider.lastError ?? 'An error occurred',
+                                  style: TextStyle(
+                                    color: Colors.white, // White text
+                                    fontSize: 13,
                                   ),
                                 ),
-                                IconButton(
-                                  onPressed: ttsProvider.clearText,
-                                  icon: Icon(
-                                    Icons.close,
-                                    color: Colors.white, // White icon
-                                    size: 18,
-                                  ),
-                                  tooltip: 'Clear',
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
+                        const SizedBox(height: 8),
                       ],
                     ],
                   ),
@@ -379,7 +294,9 @@ class _TextInputPanelState extends State<TextInputPanel> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF64B5F6), // Light blue text
+                                color: const Color(
+                                  0xFF64B5F6,
+                                ), // Light blue text
                               ),
                             ),
                           ),
@@ -390,49 +307,56 @@ class _TextInputPanelState extends State<TextInputPanel> {
                       child!,
 
                       // Text management buttons
-                      if (ttsProvider.text.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: () {
-                                ttsProvider.clearText();
-                                _textController.clear();
-                                _focusNode.requestFocus();
-                              },
-                              icon: const Icon(Icons.clear, size: 18),
-                              label: const Text('Clear Text'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFFEF5350), // Red text
-                                side: BorderSide(
-                                  color: const Color(0xFFEF5350).withOpacity(0.5), // Red border
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: _textController.text.isNotEmpty
+                                ? () {
+                                    _textController.clear();
+                                    context.read<TTSProvider>().setText('');
+                                  }
+                                : null,
+                            icon: const Icon(Icons.clear, size: 18),
+                            label: const Text('Clear Text'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(
+                                0xFFEF5350,
+                              ), // Red text for clear
+                              side: BorderSide(
+                                color: const Color(
+                                  0xFFEF5350,
+                                ).withOpacity(0.5), // Red border
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            OutlinedButton.icon(
-                              onPressed: _hideKeyboard,
-                              icon: const Icon(Icons.keyboard_hide, size: 18),
-                              label: const Text('Hide Keyboard'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF64B5F6), // Light blue text
-                                side: BorderSide(
-                                  color: const Color(0xFF64B5F6).withOpacity(0.5), // Light blue border
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
+                          ),
+                          const SizedBox(width: 12),
+                          OutlinedButton.icon(
+                            onPressed: _hideKeyboard,
+                            icon: const Icon(Icons.keyboard_hide, size: 18),
+                            label: const Text('Hide Keyboard'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(
+                                0xFF64B5F6,
+                              ), // Light blue text
+                              side: BorderSide(
+                                color: const Color(
+                                  0xFF64B5F6,
+                                ).withOpacity(0.5), // Light blue border
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
                               ),
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),

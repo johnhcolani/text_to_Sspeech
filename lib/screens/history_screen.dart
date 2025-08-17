@@ -44,106 +44,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // Check if an item is expanded
   bool _isExpanded(String itemId) => _expandedItems.contains(itemId);
 
-  Future<void> _ensureOffline(TtsHistoryItem item) async {
-    final tts = context.read<TTSProvider>();
-    final hp = context.read<HistoryProvider>();
-
-    // First check if the device supports file synthesis
-    final supportsFileSynthesis = await tts.isFileSynthesisSupported();
-
-    if (!supportsFileSynthesis) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.info_outline, color: Colors.white),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'This device doesn\'t support saving offline audio. Playing with live TTS instead.',
-                  style: TextStyle(fontSize: 14),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 4),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-
-      // Play directly with TTS instead of trying to save
-      await _startItem(item);
-      return;
-    }
-
-    // Try to save offline audio
-    final path = await tts.cache.ensureCached(
-      text: item.text,
-      voiceId: item.voiceId,
-      rate: item.rate,
-      pitch: item.pitch,
-    );
-
-    if (path == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.warning, color: Colors.white),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Could not save offline audio. Playing with live TTS instead.',
-                  style: TextStyle(fontSize: 14),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 4),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-
-      // Fallback to live TTS
-      await _startItem(item);
-      return;
-    }
-
-    // Successfully saved offline audio
-    await hp.updateFilePath(item.id, path);
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Offline audio saved successfully!',
-                style: TextStyle(fontSize: 14),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-
-    final updated = hp.items.firstWhere(
-      (e) => e.id == item.id,
-      orElse: () => item,
-    );
-    await _startItem(updated);
-  }
-
   Future<void> _startItem(TtsHistoryItem item) async {
     // Stop any current playback
     await _stopCurrent();
@@ -507,7 +407,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              'Audio file available',
+                              'MP3 file available',
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.7),
                                 fontSize: 12,
