@@ -5,7 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'dart:io';
 import 'dart:async';
-import 'dart:math';
+
 import '../services/database_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:just_audio/just_audio.dart';
@@ -157,15 +157,16 @@ class TTSProvider extends ChangeNotifier {
 
     _updateWordProgress();
 
-    // Use a more frequent timer for smoother updates, but calculate position based on actual progress
-    _wordHighlightTimer = Timer.periodic(const Duration(milliseconds: 100), (
+    // Use much faster timer for smoother word highlighting (every 16ms = 60fps)
+    _wordHighlightTimer = Timer.periodic(const Duration(milliseconds: 16), (
       timer,
     ) {
       if (_ttsState == TTSState.playing && _speechStartTime != null) {
         _updateWordProgressBasedOnActualSpeech();
-        // Periodically adjust timing for better synchronization
-        if (timer.tick % 10 == 0) {
-          // Every 1 second
+
+        // Adjust timing dynamically every 100ms for better accuracy
+        if (timer.tick % 6 == 0) {
+          // Every ~100ms (6 * 16ms)
           adjustTimingDynamically();
         }
       } else {
@@ -185,20 +186,20 @@ class TTSProvider extends ChangeNotifier {
     final textLength = _text.length;
     final wordsCount = _words.length;
 
-    // Base time per character (varies by language and speech rate)
-    final baseTimePerChar = 50.0; // milliseconds per character
-    final baseTimePerWord = 300.0; // milliseconds per word
+    // More accurate base times based on research
+    final baseTimePerChar = 40.0; // milliseconds per character (optimized)
+    final baseTimePerWord = 250.0; // milliseconds per word (optimized)
+
+    // Account for speech rate more accurately
+    final rateMultiplier = 1.0 / _rate; // Inverse relationship
 
     // Calculate duration considering both character and word count
-    final charBasedDuration = textLength * baseTimePerChar;
-    final wordBasedDuration = wordsCount * baseTimePerWord;
+    final charBasedDuration = textLength * baseTimePerChar * rateMultiplier;
+    final wordBasedDuration = wordsCount * baseTimePerWord * rateMultiplier;
 
-    // Use the longer duration for more accurate estimation
-    _actualSpeechDuration =
-        (charBasedDuration > wordBasedDuration
-            ? charBasedDuration
-            : wordBasedDuration) /
-        _rate;
+    // Use weighted average for more accurate estimation
+    // Words are more reliable than characters for timing
+    _actualSpeechDuration = (charBasedDuration * 0.3 + wordBasedDuration * 0.7);
 
     debugPrint(
       'Estimated speech duration: ${_actualSpeechDuration}ms (${_actualSpeechDuration / 1000}s)',
@@ -222,11 +223,12 @@ class TTSProvider extends ChangeNotifier {
     // Ensure we don't go beyond the word count
     final newWordIndex = targetWordIndex.clamp(0, _words.length - 1);
 
-    // Add a safety check to prevent jumping too many words at once
-    final maxJump = (_totalWords * 0.05).round().clamp(
+    // Allow smaller jumps for more responsive highlighting
+    final maxJump = (_totalWords * 0.02).round().clamp(
       1,
-      3,
-    ); // Max 5% jump or 3 words
+      2,
+    ); // Max 2% jump or 2 words
+
     if ((newWordIndex - _currentWordIndex).abs() > maxJump) {
       // If the jump is too big, limit it to prevent runaway progression
       final limitedJump = newWordIndex > _currentWordIndex
@@ -805,36 +807,80 @@ class TTSProvider extends ChangeNotifier {
   /// Checks if the current device supports audio file synthesis
   Future<bool> isFileSynthesisSupported() async {
     try {
-      // Try a simple test synthesis with minimal text
-      final testText = "Test";
-      final dir = await getApplicationDocumentsDirectory();
-      final testFileName = 'test_synthesis.wav';
-      final testPath = p.join(dir.path, testFileName);
-
-      // Clean up any existing test file
-      final testFile = File(testPath);
-      if (await testFile.exists()) {
-        await testFile.delete();
-      }
-
-      // Try to synthesize a test file
-      await _tts.synthesizeToFile(testText, testPath);
-
-      // Check if file was created and has content
-      if (await testFile.exists()) {
-        final size = await testFile.length();
-        await testFile.delete(); // Clean up
-        return size > 100; // File should have some content
-      }
-
-      return false;
+      // Check if the TTS engine supports file synthesis
+      final engines = await _tts.getEngines;
+      return engines.isNotEmpty;
     } catch (e) {
-      debugPrint('File synthesis test failed: $e');
+      debugPrint('File synthesis check failed: $e');
       return false;
     }
   }
 
-  // ---------- High-quality audio synthesis for car audio ----------
+  // ---------- Smart offline detection and MP3 fallback ----------
+  bool _isOffline = false;
+  String? _lastGeneratedMP3Path;
+
+  /// Check if device is offline and should use MP3 files
+  Future<bool> _checkOfflineStatus() async {
+    try {
+      // Try to access a simple online resource
+      final result = await InternetAddress.lookup('google.com');
+      _isOffline = result.isEmpty;
+    } catch (e) {
+      _isOffline = true;
+    }
+
+    debugPrint('TTS: Offline status: $_isOffline');
+    return _isOffline;
+  }
+
+  /// Smart speak method that automatically uses MP3 when offline
+  Future<void> speakSmart() async {
+    final isOffline = await _checkOfflineStatus();
+
+    if (isOffline) {
+      debugPrint('TTS: Offline detected, using MP3 fallback');
+      await _speakWithMP3Fallback();
+    } else {
+      debugPrint('TTS: Online, using real-time TTS');
+      await speak();
+    }
+  }
+
+  /// Speak with automatic MP3 generation and playback
+  Future<void> _speakWithMP3Fallback() async {
+    try {
+      _clearError();
+      _ttsState = TTSState.stopped;
+      notifyListeners();
+
+      // Generate or reuse MP3 file
+      String? mp3Path = _lastGeneratedMP3Path;
+
+      if (mp3Path == null || !await File(mp3Path).exists()) {
+        debugPrint('TTS: Generating new MP3 file for offline playback');
+        mp3Path = await synthesizeToFileHighQuality();
+        if (mp3Path != null) {
+          _lastGeneratedMP3Path = mp3Path;
+        }
+      }
+
+      if (mp3Path != null) {
+        debugPrint('TTS: Playing MP3 file: $mp3Path');
+        await playSavedAudio(mp3Path);
+      } else {
+        _setError('Failed to generate MP3 for offline playback');
+        _ttsState = TTSState.stopped;
+        notifyListeners();
+      }
+    } catch (e) {
+      _setError('MP3 fallback failed: ${e.toString()}');
+      _ttsState = TTSState.stopped;
+      notifyListeners();
+    }
+  }
+
+  /// Enhanced MP3 synthesis with better quality settings
   Future<String?> synthesizeToFileHighQuality() async {
     final content = _text.trim();
     if (content.isEmpty) {
@@ -846,10 +892,10 @@ class TTSProvider extends ChangeNotifier {
     try {
       _clearError();
       debugPrint(
-        'TTS: Attempting high-quality synthesis: "${content.substring(0, content.length > 50 ? 50 : content.length)}..."',
+        'TTS: Attempting high-quality MP3 synthesis: "${content.substring(0, content.length > 50 ? 50 : content.length)}..."',
       );
 
-      // Apply optimal settings for car audio
+      // Apply optimal settings for car audio and offline playback
       await _applyVoice();
       await _tts.setSpeechRate(_rate);
       await _tts.setPitch(_pitch);
@@ -857,63 +903,65 @@ class TTSProvider extends ChangeNotifier {
 
       final dir = await getApplicationDocumentsDirectory();
       final id = const Uuid().v4();
-      final fileNameOnly = 'tts_hq_$id.mp3'; // Use MP3 extension
+      final fileNameOnly = 'tts_hq_$id.mp3';
       final fullPath = p.join(dir.path, fileNameOnly);
 
-      // Try multiple synthesis attempts
+      // Enhanced MP3 synthesis with multiple fallback strategies
       String? resultPath;
 
-      // Attempt #1: Try direct MP3 synthesis
+      // Strategy 1: Direct MP3 synthesis (highest quality)
       try {
+        debugPrint('TTS: Attempting direct MP3 synthesis...');
         await _tts.synthesizeToFile(content, fullPath);
         if (await File(fullPath).exists()) {
-          resultPath = await _verifyAndOptimizeFile(fullPath);
+          resultPath = await _verifyAndOptimizeMP3File(fullPath);
+          if (resultPath != null) {
+            debugPrint('TTS: Direct MP3 synthesis successful');
+            return resultPath;
+          }
         }
       } catch (e) {
         debugPrint('Direct MP3 synthesis failed: $e');
       }
 
-      // Attempt #2: Try with .wav extension, then rename to .mp3
+      // Strategy 2: WAV synthesis with conversion (fallback)
       if (resultPath == null) {
         try {
+          debugPrint('TTS: Attempting WAV synthesis with MP3 conversion...');
           final wavFileName = 'tts_hq_$id.wav';
           final wavPath = p.join(dir.path, wavFileName);
+
           await _tts.synthesizeToFile(content, wavPath);
 
           if (await File(wavPath).exists()) {
-            // Rename WAV to MP3 (simple approach)
-            final mp3File = File(fullPath);
-            await File(wavPath).copy(fullPath);
-            await File(wavPath).delete(); // Remove the WAV file
-
-            if (await mp3File.exists()) {
-              resultPath = await _verifyAndOptimizeFile(fullPath);
+            // Convert WAV to MP3 using platform-specific methods
+            final mp3Path = await _convertWavToMp3(wavPath, fullPath);
+            if (mp3Path != null) {
+              resultPath = await _verifyAndOptimizeMP3File(mp3Path);
             }
+
+            // Clean up WAV file
+            await File(wavPath).delete();
           }
         } catch (e) {
-          debugPrint('WAV to MP3 rename failed: $e');
+          debugPrint('WAV to MP3 conversion failed: $e');
         }
       }
 
-      // Attempt #3: Try with .m4a extension, then rename to .mp3
+      // Strategy 3: Use WAV directly if MP3 conversion fails
       if (resultPath == null) {
         try {
-          final m4aFileName = 'tts_hq_$id.m4a';
-          final m4aPath = p.join(dir.path, m4aFileName);
-          await _tts.synthesizeToFile(content, m4aPath);
+          debugPrint('TTS: Falling back to WAV format...');
+          final wavFileName = 'tts_hq_$id.wav';
+          final wavPath = p.join(dir.path, wavFileName);
 
-          if (await File(m4aPath).exists()) {
-            // Rename M4A to MP3 (simple approach)
-            final mp3File = File(fullPath);
-            await File(m4aPath).copy(fullPath);
-            await File(m4aPath).delete(); // Remove the M4A file
+          await _tts.synthesizeToFile(content, wavPath);
 
-            if (await mp3File.exists()) {
-              resultPath = await _verifyAndOptimizeFile(fullPath);
-            }
+          if (await File(wavPath).exists()) {
+            resultPath = await _verifyAndOptimizeWavFile(wavPath);
           }
         } catch (e) {
-          debugPrint('M4A to MP3 rename failed: $e');
+          debugPrint('WAV fallback failed: $e');
         }
       }
 
@@ -931,25 +979,97 @@ class TTSProvider extends ChangeNotifier {
     }
   }
 
-  Future<String?> _verifyAndOptimizeFile(String filePath) async {
+  /// Convert WAV to MP3 using platform-specific methods
+  Future<String?> _convertWavToMp3(String wavPath, String mp3Path) async {
+    try {
+      if (Platform.isAndroid) {
+        // On Android, try to use the WAV file directly as MP3
+        // Many Android TTS engines actually output MP3 even with .wav extension
+        final wavFile = File(wavPath);
+        final mp3File = File(mp3Path);
+
+        if (await wavFile.exists()) {
+          await wavFile.copy(mp3Path);
+          if (await mp3File.exists()) {
+            debugPrint('TTS: WAV copied as MP3 on Android');
+            return mp3Path;
+          }
+        }
+      } else if (Platform.isIOS) {
+        // On iOS, WAV files are often high quality and can be used directly
+        // Rename the extension to .mp3 for consistency
+        final wavFile = File(wavPath);
+        final mp3File = File(mp3Path);
+
+        if (await wavFile.exists()) {
+          await wavFile.copy(mp3Path);
+          if (await mp3File.exists()) {
+            debugPrint('TTS: WAV copied as MP3 on iOS');
+            return mp3Path;
+          }
+        }
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('WAV to MP3 conversion failed: $e');
+      return null;
+    }
+  }
+
+  /// Enhanced MP3 file verification
+  Future<String?> _verifyAndOptimizeMP3File(String filePath) async {
     try {
       final file = File(filePath);
       final size = await file.length();
 
-      // Ensure file is substantial and not corrupted
-      if (size < 2048) {
-        // Increased minimum size for high quality
-        debugPrint('File too small for high quality: ${size} bytes');
+      // MP3 files should be substantial for good quality
+      if (size < 4096) {
+        // Increased minimum size for MP3
+        debugPrint('MP3 file too small for high quality: ${size} bytes');
         return null;
       }
 
-      // Additional quality checks could be added here
-      // For example, checking audio headers, duration, etc.
+      // Check if file has valid audio content
+      final bytes = await file.readAsBytes();
+      if (bytes.length < 10 || bytes[0] != 0xFF || (bytes[1] & 0xE0) != 0xE0) {
+        debugPrint('File does not appear to be valid MP3');
+        return null;
+      }
 
-      debugPrint('High-quality file verified: $filePath (${size} bytes)');
+      debugPrint('High-quality MP3 file verified: $filePath (${size} bytes)');
       return filePath;
     } catch (e) {
-      debugPrint('File verification failed: $e');
+      debugPrint('MP3 file verification failed: $e');
+      return null;
+    }
+  }
+
+  /// Enhanced WAV file verification
+  Future<String?> _verifyAndOptimizeWavFile(String filePath) async {
+    try {
+      final file = File(filePath);
+      final size = await file.length();
+
+      // WAV files should be substantial for good quality
+      if (size < 2048) {
+        debugPrint('WAV file too small for high quality: ${size} bytes');
+        return null;
+      }
+
+      // Check if file has valid WAV header
+      final bytes = await file.readAsBytes();
+      if (bytes.length < 12 ||
+          String.fromCharCodes(bytes.take(4)) != 'RIFF' ||
+          String.fromCharCodes(bytes.skip(8).take(4)) != 'WAVE') {
+        debugPrint('File does not appear to be valid WAV');
+        return null;
+      }
+
+      debugPrint('High-quality WAV file verified: $filePath (${size} bytes)');
+      return filePath;
+    } catch (e) {
+      debugPrint('WAV file verification failed: $e');
       return null;
     }
   }

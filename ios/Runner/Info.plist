@@ -47,5 +47,13 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app needs access to microphone for text-to-speech functionality.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to camera to extract text from photos using OCR.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to photo library to select images for text extraction using OCR.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app needs access to save processed files to your photo library.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>This app needs access to documents folder to read and process text files.</string>
 </dict>
 </plist>

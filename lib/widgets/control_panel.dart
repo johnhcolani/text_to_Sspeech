@@ -113,6 +113,46 @@ class ControlPanel extends StatelessWidget {
                       const SizedBox(height: 16),
                     ],
 
+                    // Status indicator for MP3 vs Real-time TTS
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.green.withOpacity(0.5),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            ttsProvider.isPlayingSavedAudio
+                                ? Icons.music_note
+                                : Icons.record_voice_over,
+                            color: Colors.green[300],
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            ttsProvider.isPlayingSavedAudio
+                                ? 'MP3 Playback'
+                                : 'Real-time TTS',
+                            style: TextStyle(
+                              color: Colors.green[300],
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
                     // Status indicator
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -229,28 +269,42 @@ class ControlPanel extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         // Play/Pause button
-                        _buildControlButton(
-                          context: context,
-                          onPressed: ttsProvider.text.isEmpty
-                              ? null
-                              : () {
-                                  if (ttsProvider.ttsState ==
-                                      TTSState.playing) {
-                                    ttsProvider.pause();
-                                  } else if (ttsProvider.ttsState ==
-                                      TTSState.paused) {
-                                    ttsProvider.resume();
-                                  } else {
-                                    ttsProvider.speak();
-                                  }
-                                },
-                          icon: _getPlayPauseIcon(ttsProvider.ttsState),
-                          label: _getPlayPauseLabel(ttsProvider.ttsState),
-                          backgroundColor: const Color(
-                            0xFF64B5F6,
-                          ), // Light blue background
-                          foregroundColor: Colors.white, // White text and icon
-                          size: 70,
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              if (ttsProvider.ttsState == TTSState.playing) {
+                                ttsProvider.pause();
+                              } else if (ttsProvider.ttsState ==
+                                  TTSState.paused) {
+                                ttsProvider.resume();
+                              } else {
+                                // Use smart speak method that automatically uses MP3 when offline
+                                ttsProvider.speakSmart();
+                              }
+                            },
+                            icon: Icon(
+                              ttsProvider.ttsState == TTSState.playing
+                                  ? Icons.pause
+                                  : Icons.play_arrow,
+                              size: 24,
+                            ),
+                            label: Text(
+                              ttsProvider.ttsState == TTSState.playing
+                                  ? 'Pause'
+                                  : ttsProvider.ttsState == TTSState.paused
+                                  ? 'Resume'
+                                  : 'Play',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
                         ),
 
                         // Stop button
@@ -260,7 +314,7 @@ class ControlPanel extends StatelessWidget {
                               ? null
                               : ttsProvider.stop,
                           icon: Icons.stop,
-                          label: 'Stop',
+                          label: '',
                           backgroundColor: const Color(
                             0xFFEF5350,
                           ), // Red background

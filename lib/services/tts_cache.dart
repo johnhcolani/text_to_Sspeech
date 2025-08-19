@@ -1,10 +1,8 @@
 import 'dart:io';
-import 'dart:typed_data';
-import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart'; // Added for debugPrint
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
-import 'package:flutter/foundation.dart'; // Added for debugPrint
 
 /// Implement this to fetch bytes from your cloud TTS (Google/Azure/Polly/etc).
 /// Return raw audio bytes (mp3/wav/m4a). Throw on failure.
@@ -90,10 +88,12 @@ class TtsCache {
   }
 
   Future<bool> _hasConnectivity() async {
-    final result = await Connectivity().checkConnectivity();
-    return result.contains(ConnectivityResult.mobile) ||
-        result.contains(ConnectivityResult.wifi) ||
-        result.contains(ConnectivityResult.ethernet);
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      return result.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
   }
 
   Future<File> _writeBytes(Uint8List bytes, String ext) async {

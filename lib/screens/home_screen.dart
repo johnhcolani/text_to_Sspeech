@@ -49,10 +49,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 24),
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withAlpha(26),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withAlpha(51),
                             width: 1,
                           ),
                         ),
@@ -62,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.2),
+                                color: Colors.blue.withAlpha(51),
                                 borderRadius: const BorderRadius.only(
                                   topLeft: Radius.circular(16),
                                   topRight: Radius.circular(16),
@@ -131,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
             'Natural Human Voice',
             style: TextStyle(
               fontSize: 16,
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withAlpha(204),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -173,9 +173,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    backgroundColor: Colors.blue.withOpacity(0.6),
+                    backgroundColor: Colors.blue.withAlpha(153),
                     side: BorderSide(
-                      color: Colors.blue.withOpacity(0.8),
+                      color: Colors.blue.withAlpha(204),
                       width: 1,
                     ),
                     padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -196,16 +196,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     label: Text(
                       tts.selectedVoice.isNotEmpty
                           ? tts.selectedVoice
-                          : 'Default Voice',
+                          : 'Voice',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    backgroundColor: Colors.green.withOpacity(0.6),
+                    backgroundColor: Colors.green.withAlpha(153),
                     side: BorderSide(
-                      color: Colors.green.withOpacity(0.8),
+                      color: Colors.green.withAlpha(204),
                       width: 1,
                     ),
                     padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -297,9 +297,5 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
-  }
-
-  void _showVoiceSettingsBottomSheet() {
-    // This method is no longer needed since we're adding settings directly to the screen
   }
 }

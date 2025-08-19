@@ -29,13 +29,19 @@ class _ReadingPanelState extends State<ReadingPanel> {
         final activeLine = isActive ? tts.currentLineIndex : -1;
 
         // Auto-scroll when active line changes
-        if (isActive && lines.isNotEmpty && activeLine >= 0 && activeLine != _lastScrolledTo) {
+        if (isActive &&
+            lines.isNotEmpty &&
+            activeLine >= 0 &&
+            activeLine != _lastScrolledTo) {
           _lastScrolledTo = activeLine;
           // Scroll so the active line is comfortably visible
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (_scrollController.hasClients) {
               final itemHeight = 220.0 / 8; // Approximate height per line
-              final targetOffset = (activeLine * itemHeight).clamp(0.0, _scrollController.position.maxScrollExtent);
+              final targetOffset = (activeLine * itemHeight).clamp(
+                0.0,
+                _scrollController.position.maxScrollExtent,
+              );
               _scrollController.animateTo(
                 targetOffset,
                 duration: const Duration(milliseconds: 300),
@@ -55,13 +61,17 @@ class _ReadingPanelState extends State<ReadingPanel> {
                 Icon(
                   Icons.text_fields,
                   size: 48,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withOpacity(0.3),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Nothing to read yet.',
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.6),
                     fontSize: 16,
                   ),
                 ),
@@ -69,7 +79,9 @@ class _ReadingPanelState extends State<ReadingPanel> {
                 Text(
                   'Upload a file or type text to get started',
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.4),
                     fontSize: 12,
                   ),
                 ),
@@ -86,9 +98,14 @@ class _ReadingPanelState extends State<ReadingPanel> {
               // Progress header
               if (isActive) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer.withOpacity(0.3),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(14),
                       topRight: Radius.circular(14),
@@ -123,61 +140,110 @@ class _ReadingPanelState extends State<ReadingPanel> {
                     ],
                   ),
                 ),
-                // Progress bar with better alignment
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  child: LinearProgressIndicator(
-                    value: tts.progressPercentage,
-                    backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).colorScheme.primary,
-                    ),
-                    minHeight: 4,
-                  ),
-                ),
-                // Word progress indicator with better alignment
+
+                // Word highlighting at the top for better readability
                 if (tts.wordHighlightingActive && tts.words.isNotEmpty) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    child: Row(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.secondaryContainer.withOpacity(0.2),
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outline.withOpacity(0.1),
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.text_fields,
-                          size: 14,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'Word ${tts.currentWordIndex + 1} of ${tts.words.length}',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontSize: 11,
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.text_fields,
+                              size: 14,
+                              color: Theme.of(context).colorScheme.secondary,
                             ),
-                          ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Current Word:',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.secondary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              '${tts.currentWordIndex + 1} of ${tts.words.length}',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.secondary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 4),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(12),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.secondaryContainer,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.secondary.withOpacity(0.3),
+                              width: 1,
+                            ),
                           ),
                           child: Text(
                             tts.progressWord,
                             style: TextStyle(
-                              color: Theme.of(context).colorScheme.primary,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSecondaryContainer,
                               fontWeight: FontWeight.bold,
-                              fontSize: 11,
+                              fontSize: 16,
                               fontStyle: FontStyle.italic,
                             ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ],
+
+                // Progress bar with better alignment
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  child: LinearProgressIndicator(
+                    value: tts.progressPercentage,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.primary.withOpacity(0.2),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).colorScheme.primary,
+                    ),
+                    minHeight: 4,
+                  ),
+                ),
               ],
-              
+
               // Text content
               Expanded(
                 child: ListView.builder(
@@ -189,11 +255,19 @@ class _ReadingPanelState extends State<ReadingPanel> {
                     final style = Theme.of(context).textTheme.bodyMedium!;
                     return AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: isCurrent
-                            ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.6)
+                            ? Theme.of(
+                                context,
+                              ).colorScheme.primaryContainer.withOpacity(0.6)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(8),
                         border: isCurrent
@@ -216,7 +290,13 @@ class _ReadingPanelState extends State<ReadingPanel> {
   }
 
   // Enhanced line highlighting with better word highlighting
-  Widget _buildLine(TTSProvider tts, String line, int lineIndex, TextStyle style, bool isCurrentLine) {
+  Widget _buildLine(
+    TTSProvider tts,
+    String line,
+    int lineIndex,
+    TextStyle style,
+    bool isCurrentLine,
+  ) {
     final start = tts.progressStart;
     final end = tts.progressEnd;
 
@@ -231,12 +311,23 @@ class _ReadingPanelState extends State<ReadingPanel> {
     final lineEnd = (lineStart + line.length).clamp(0, text.length);
 
     // If TTS cursor is inside this line, highlight the current word
-    final hasCursor = tts.progressActive && start >= lineStart && start <= lineEnd;
-    if (hasCursor && end >= start && end <= lineEnd && start < end && isCurrentLine) {
-      final before = line.substring(0, (start - lineStart).clamp(0, line.length));
-      final word = line.substring((start - lineStart).clamp(0, line.length), (end - lineStart).clamp(0, line.length));
+    final hasCursor =
+        tts.progressActive && start >= lineStart && start <= lineEnd;
+    if (hasCursor &&
+        end >= start &&
+        end <= lineEnd &&
+        start < end &&
+        isCurrentLine) {
+      final before = line.substring(
+        0,
+        (start - lineStart).clamp(0, line.length),
+      );
+      final word = line.substring(
+        (start - lineStart).clamp(0, line.length),
+        (end - lineStart).clamp(0, line.length),
+      );
       final after = line.substring((end - lineStart).clamp(0, line.length));
-      
+
       return RichText(
         text: TextSpan(
           children: [
@@ -244,10 +335,14 @@ class _ReadingPanelState extends State<ReadingPanel> {
             TextSpan(
               text: word,
               style: style.copyWith(
-                backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.secondaryContainer,
                 fontWeight: FontWeight.bold,
                 color: Theme.of(context).colorScheme.onSecondaryContainer,
-                fontSize: style.fontSize! * 1.1, // Make highlighted word slightly larger
+                fontSize:
+                    style.fontSize! *
+                    1.1, // Make highlighted word slightly larger
               ),
             ),
             TextSpan(text: after, style: style),
@@ -258,11 +353,11 @@ class _ReadingPanelState extends State<ReadingPanel> {
 
     // Default: render plain line with current line styling
     return Text(
-      line, 
+      line,
       style: style.copyWith(
         fontWeight: isCurrentLine ? FontWeight.w500 : FontWeight.normal,
-        color: isCurrentLine 
-            ? Theme.of(context).colorScheme.primary 
+        color: isCurrentLine
+            ? Theme.of(context).colorScheme.primary
             : style.color,
       ),
     );
@@ -271,6 +366,8 @@ class _ReadingPanelState extends State<ReadingPanel> {
   BoxDecoration _box(BuildContext context) => BoxDecoration(
     color: Theme.of(context).colorScheme.surface,
     borderRadius: BorderRadius.circular(14),
-    border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.15)),
+    border: Border.all(
+      color: Theme.of(context).colorScheme.outline.withOpacity(0.15),
+    ),
   );
 }

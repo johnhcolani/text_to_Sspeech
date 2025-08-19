@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:text_to_speech/providers/history_provider.dart';
@@ -6,9 +7,16 @@ import 'screens/home_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/settings_screen.dart';
 import 'providers/tts_provider.dart';
+import 'services/file_processing_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Request permissions at startup on Android only
+  // iOS handles permissions automatically when needed
+  if (Platform.isAndroid) {
+    await FileProcessingService().requestPermissions();
+  }
   
   final ttsProvider = TTSProvider();
   await ttsProvider.initialize();

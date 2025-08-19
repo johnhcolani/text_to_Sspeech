@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show SystemChannels;
 import 'package:provider/provider.dart';
 import '../providers/tts_provider.dart';
+import '../services/file_processing_service.dart';
 
 class TextInputPanel extends StatefulWidget {
   const TextInputPanel({super.key});
@@ -11,357 +11,339 @@ class TextInputPanel extends StatefulWidget {
 }
 
 class _TextInputPanelState extends State<TextInputPanel> {
-  late final TextEditingController _textController;
-  late final FocusNode _focusNode;
-
-  bool _didInitialSync = false;
+  final TextEditingController _textController = TextEditingController();
+  final FileProcessingService _fileService = FileProcessingService();
+  bool _isProcessing = false;
 
   @override
   void initState() {
     super.initState();
-    _textController = TextEditingController();
-    _focusNode = FocusNode();
+    _textController.addListener(_onTextChanged);
 
-    // Seed the controller once from provider on first frame (no rebuild thrash)
+    // Add welcome text
+    _textController.text =
+        "Welcome to Text to Speech!\n\nThis app converts text to natural-sounding speech with advanced features:\n\n• Type or paste text directly\n• Upload files (TXT, PDF, DOC)\n• Select photos from your library\n• Take photos with your camera\n• Anti-stuttering MP3 playback\n• Multiple languages and voices\n\nStart by typing some text or using the upload buttons below.";
+
+    // Notify TTS provider about initial text
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final text = context.read<TTSProvider>().text;
-      _textController.text = text;
-      _textController.selection = TextSelection.fromPosition(
-        TextPosition(offset: _textController.text.length),
-      );
-      _didInitialSync = true;
+      if (mounted) {
+        context.read<TTSProvider>().setText(_textController.text);
+      }
     });
   }
 
   @override
   void dispose() {
-    _focusNode.dispose();
+    _textController.removeListener(_onTextChanged);
     _textController.dispose();
     super.dispose();
   }
 
-  void _hideKeyboard() {
-    _focusNode.unfocus();
-    // Hide keyboard on iOS
-    SystemChannels.textInput.invokeMethod('TextInput.hide');
+  void _onTextChanged() {
+    context.read<TTSProvider>().setText(_textController.text);
+  }
+
+  Future<void> _processFile() async {
+    setState(() => _isProcessing = true);
+
+    try {
+      String? extractedText = await _fileService.pickAndProcessTextFile();
+      if (extractedText != null) {
+        _textController.text = extractedText;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('File processed successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error processing file: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _processImage({bool useCamera = false}) async {
+    setState(() => _isProcessing = true);
+
+    try {
+      String? extractedText = await _fileService.pickAndProcessImage(
+        useCamera: useCamera,
+      );
+      if (extractedText != null) {
+        _textController.text = extractedText;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Text extracted from ${useCamera ? 'camera' : 'image'} successfully!',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error processing ${useCamera ? 'camera' : 'image'}: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isProcessing = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Build the TextField once and pass it as Consumer.child so it won't rebuild
-    final textField = ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 100, maxHeight: 150),
-      child: TextField(
-        controller: _textController,
-        focusNode: _focusNode,
-        maxLines: null,
-        expands: true,
-        textAlignVertical: TextAlignVertical.top,
-        onChanged: (v) => context.read<TTSProvider>().setText(v),
-        style: const TextStyle(
-          color: Colors.white, // White text for visibility
-          fontSize: 14,
-        ),
-        decoration: InputDecoration(
-          hintText:
-              'Enter your text here...\n\nYou can type directly or upload a file above.',
-          hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.5), // White with opacity for hint
-            fontSize: 14,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.3), // White border with opacity
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: const Color(0xFF64B5F6), // Light blue focused border
-              width: 2,
-            ),
-          ),
-          filled: true,
-          fillColor: Colors.white.withOpacity(
-            0.05,
-          ), // Very light white background
-          contentPadding: const EdgeInsets.all(16),
-        ),
-      ),
-    );
-
     return Consumer<TTSProvider>(
-      child: textField,
       builder: (context, ttsProvider, child) {
-        // One-way sync: only push provider -> controller when
-        // 1) first mount, or
-        // 2) the TextField is NOT focused (user not typing), and
-        // 3) texts differ (likely external change: file loaded / cleared)
-        final providerText = ttsProvider.text;
-        final controllerText = _textController.text;
-
-        if ((!_didInitialSync ||
-                (!_focusNode.hasFocus && controllerText != providerText)) &&
-            // also avoid overwriting during IME composition
-            !_textController.value.composing.isValid) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            _textController.text = providerText;
-            _textController.selection = TextSelection.fromPosition(
-              TextPosition(offset: _textController.text.length),
-            );
-            _didInitialSync = true;
-          });
-        }
-
         return Container(
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(
-              0.1,
-            ), // Changed to white with low opacity
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.2), // Added white border
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(
-                  0.2,
-                ), // Increased shadow opacity
-                blurRadius: 15,
-                offset: const Offset(0, 5),
-              ),
-            ],
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
           ),
-          child: GestureDetector(
-            onTap: _hideKeyboard,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Panel header
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Text Input',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // File Upload Section
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.2),
+                    width: 1,
                   ),
-                  decoration: BoxDecoration(
-                    color: const Color(
-                      0xFF64B5F6,
-                    ).withOpacity(0.2), // Light blue with opacity
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.upload_file,
+                          color: Colors.blue[300],
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'File Upload & Image Processing',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _isProcessing ? null : _processFile,
+                            icon: _isProcessing
+                                ? SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.file_upload, size: 18),
+                            label: Text(
+                              _isProcessing ? 'Processing...' : 'File',
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.blue[300],
+                              side: BorderSide(color: Colors.blue[300]!),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _isProcessing
+                                ? null
+                                : () => _processImage(useCamera: false),
+                            icon: _isProcessing
+                                ? SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.photo_library, size: 18),
+                            label: Text(
+                              _isProcessing ? 'Processing...' : 'Photo',
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.green[300],
+                              side: BorderSide(color: Colors.green[300]!),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _isProcessing
+                                ? null
+                                : () => _processImage(useCamera: true),
+                            icon: _isProcessing
+                                ? SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.camera_alt, size: 18),
+                            label: Text(
+                              _isProcessing ? 'Processing...' : 'Cam',
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.orange[300],
+                              side: BorderSide(color: Colors.orange[300]!),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Supported: TXT, PDF, Images (OCR), DOC files',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Text Input Field
+              TextField(
+                controller: _textController,
+                maxLines: 8,
+                style: TextStyle(
+                  color: Colors.white.withAlpha(128),
+                  fontSize: 16,
+                ),
+                onTap: () {
+                  // Clear welcome text when user taps to type
+                  if (_textController.text.contains(
+                    "Welcome to Text to Speech!",
+                  )) {
+                    _textController.clear();
+                  }
+                },
+                decoration: InputDecoration(
+                  hintText: 'Enter text or upload a file to extract text...',
+                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.05),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Colors.white.withOpacity(0.2),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.edit_note,
-                        color: const Color(0xFF64B5F6), // Light blue icon
-                        size: 24,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Text Input',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF64B5F6), // Light blue text
-                        ),
-                      ),
-                      const Spacer(),
-                      // live character counter tied to controller (no provider rebuild)
-                      ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: _textController,
-                        builder: (_, value, __) {
-                          final count = value.text.length;
-                          return Text(
-                            '$count chars',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white.withOpacity(
-                                0.8,
-                              ), // White with opacity
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Colors.white.withOpacity(0.2),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Colors.blue.withOpacity(0.5),
+                      width: 2,
+                    ),
                   ),
                 ),
+              ),
 
-                // File upload section
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.upload_file,
-                            color: const Color(0xFF64B5F6), // Light blue icon
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Upload File',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white, // White text
-                              ),
-                            ),
-                          ),
-                        ],
+              // Text management buttons
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _textController.text.isNotEmpty
+                        ? () {
+                            _textController.clear();
+                            context.read<TTSProvider>().setText('');
+                          }
+                        : null,
+                    icon: const Icon(Icons.clear, size: 18),
+                    label: const Text('Clear Text'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red[300],
+                      side: BorderSide(color: Colors.red[300]!),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
                       ),
-                      const SizedBox(height: 12),
-                      // File picker removed - focusing on core TTS functionality
-                      // Text input is the primary way to add content
-
-                      // File info and error display
-                      if (ttsProvider.hasError) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              0xFFEF5350,
-                            ).withOpacity(0.2), // Red with opacity
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: const Color(
-                                0xFFEF5350,
-                              ).withOpacity(0.4), // Red border
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.error_outline,
-                                color: const Color(0xFFEF5350), // Red icon
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  ttsProvider.lastError ?? 'An error occurred',
-                                  style: TextStyle(
-                                    color: Colors.white, // White text
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                      ],
-                    ],
+                    ),
                   ),
-                ),
-
-                // Divider
-                Divider(
-                  color: Colors.white.withOpacity(0.2), // White with opacity
-                  height: 1,
-                  indent: 16,
-                  endIndent: 16,
-                ),
-
-                // Text input section (TextField is the Consumer.child, so no rebuilds)
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.text_fields,
-                            color: const Color(0xFF64B5F6), // Light blue icon
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Or Type Text',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(
-                                  0xFF64B5F6,
-                                ), // Light blue text
-                              ),
-                            ),
-                          ),
-                        ],
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      FocusScope.of(context).unfocus();
+                    },
+                    icon: const Icon(Icons.keyboard_hide, size: 18),
+                    label: const Text('Hide Keyboard'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue[300],
+                      side: BorderSide(color: Colors.blue[300]!),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
                       ),
-                      const SizedBox(height: 12),
-                      // Use the non-listening child here
-                      child!,
-
-                      // Text management buttons
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: _textController.text.isNotEmpty
-                                ? () {
-                                    _textController.clear();
-                                    context.read<TTSProvider>().setText('');
-                                  }
-                                : null,
-                            icon: const Icon(Icons.clear, size: 18),
-                            label: const Text('Clear Text'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(
-                                0xFFEF5350,
-                              ), // Red text for clear
-                              side: BorderSide(
-                                color: const Color(
-                                  0xFFEF5350,
-                                ).withOpacity(0.5), // Red border
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          OutlinedButton.icon(
-                            onPressed: _hideKeyboard,
-                            icon: const Icon(Icons.keyboard_hide, size: 18),
-                            label: const Text('Hide Keyboard'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(
-                                0xFF64B5F6,
-                              ), // Light blue text
-                              side: BorderSide(
-                                color: const Color(
-                                  0xFF64B5F6,
-                                ).withOpacity(0.5), // Light blue border
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
         );
       },
