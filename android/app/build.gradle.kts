@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.text_to_speech"
-    compileSdk = 34
+    compileSdk = 35
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -28,6 +28,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // Enable ML Kit features
+        multiDexEnabled = true
     }
 
     buildTypes {
