@@ -606,10 +606,8 @@ class _VoiceSettingsPanelState extends State<VoiceSettingsPanel> {
                               max: 1.0,
                               divisions: 10,
                               label:
-                                  (ttsProvider.volume * 100)
-                                      .toInt()
-                                      .toString() +
-                                  '%',
+                                  '${(ttsProvider.volume * 100)
+                                      .toInt()}%',
                               onChanged: ttsProvider.setVolume,
                             ),
                           ),

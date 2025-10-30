@@ -27,8 +27,8 @@ class TTSProvider extends ChangeNotifier {
 
   // Text + file
   String _text = '';
-  String _fileName = '';
-  bool _isLoading = false;
+  final String _fileName = '';
+  final bool _isLoading = false;
 
   // Progress tracking - now properly implemented
   int _progressStart = 0; // current char start (inclusive)
@@ -38,8 +38,8 @@ class TTSProvider extends ChangeNotifier {
   double _progressPercentage = 0.0;
 
   // Word highlighting system
-  List<String> _words = [];
-  List<int> _wordStartPositions = [];
+  final List<String> _words = [];
+  final List<int> _wordStartPositions = [];
   int _currentWordIndex = 0;
   Timer? _wordHighlightTimer;
   bool _wordHighlightingActive = false;
@@ -209,8 +209,9 @@ class TTSProvider extends ChangeNotifier {
   void _updateWordProgressBasedOnActualSpeech() {
     if (_speechStartTime == null ||
         _words.isEmpty ||
-        _actualSpeechDuration <= 0)
+        _actualSpeechDuration <= 0) {
       return;
+    }
 
     final elapsed = DateTime.now().difference(_speechStartTime!).inMilliseconds;
 
@@ -296,20 +297,6 @@ class TTSProvider extends ChangeNotifier {
   }
 
   // ---------- Progress tracking ----------
-  void _updateProgress(int start, int end, String word) {
-    _progressStart = start;
-    _progressEnd = end;
-    _progressWord = word;
-    _progressActive = true;
-
-    // Calculate progress percentage
-    if (_text.isNotEmpty) {
-      _progressPercentage = (end / _text.length).clamp(0.0, 1.0);
-    }
-
-    notifyListeners();
-  }
-
   void _resetProgress() {
     _progressStart = 0;
     _progressEnd = 0;
@@ -1026,7 +1013,7 @@ class TTSProvider extends ChangeNotifier {
       // MP3 files should be substantial for good quality
       if (size < 4096) {
         // Increased minimum size for MP3
-        debugPrint('MP3 file too small for high quality: ${size} bytes');
+        debugPrint('MP3 file too small for high quality: $size bytes');
         return null;
       }
 
@@ -1037,7 +1024,7 @@ class TTSProvider extends ChangeNotifier {
         return null;
       }
 
-      debugPrint('High-quality MP3 file verified: $filePath (${size} bytes)');
+      debugPrint('High-quality MP3 file verified: $filePath ($size bytes)');
       return filePath;
     } catch (e) {
       debugPrint('MP3 file verification failed: $e');
@@ -1053,7 +1040,7 @@ class TTSProvider extends ChangeNotifier {
 
       // WAV files should be substantial for good quality
       if (size < 2048) {
-        debugPrint('WAV file too small for high quality: ${size} bytes');
+        debugPrint('WAV file too small for high quality: $size bytes');
         return null;
       }
 
@@ -1066,7 +1053,7 @@ class TTSProvider extends ChangeNotifier {
         return null;
       }
 
-      debugPrint('High-quality WAV file verified: $filePath (${size} bytes)');
+      debugPrint('High-quality WAV file verified: $filePath ($size bytes)');
       return filePath;
     } catch (e) {
       debugPrint('WAV file verification failed: $e');
@@ -1111,7 +1098,7 @@ class TTSProvider extends ChangeNotifier {
           if (size > 1024) {
             // Ensure file is not empty/corrupted
             debugPrint(
-              'TTS: Successfully synthesized to file: $fullPath (${size} bytes)',
+              'TTS: Successfully synthesized to file: $fullPath ($size bytes)',
             );
             return fullPath;
           }
@@ -1124,7 +1111,7 @@ class TTSProvider extends ChangeNotifier {
           final size = await f.length();
           if (size > 1024) {
             debugPrint(
-              'TTS: Successfully synthesized to file: $fullPath (${size} bytes)',
+              'TTS: Successfully synthesized to file: $fullPath ($size bytes)',
             );
             return f.path;
           }

@@ -649,28 +649,6 @@ class ControlPanel extends StatelessWidget {
     }
   }
 
-  IconData _getPlayPauseIcon(TTSState state) {
-    switch (state) {
-      case TTSState.playing:
-        return Icons.pause;
-      case TTSState.paused:
-        return Icons.play_arrow;
-      default:
-        return Icons.play_arrow;
-    }
-  }
-
-  String _getPlayPauseLabel(TTSState state) {
-    switch (state) {
-      case TTSState.playing:
-        return 'Pause';
-      case TTSState.paused:
-        return 'Resume';
-      default:
-        return 'Play';
-    }
-  }
-
   void _showVoicePicker(BuildContext context, TTSProvider ttsProvider) {
     showModalBottomSheet(
       context: context,

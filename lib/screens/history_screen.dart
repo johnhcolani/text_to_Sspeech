@@ -18,7 +18,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // Track which item is active
   String? _currentId;
   // Track which items are expanded to show full text
-  Set<String> _expandedItems = {};
+  final Set<String> _expandedItems = {};
 
   @override
   void initState() {
@@ -152,7 +152,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             tooltip: 'Play',
             icon: const Icon(
               Icons.play_circle,
-              color: const Color(
+              color: Color(
                 0xFF64B5F6,
               ), // Light blue for better visibility
             ),
@@ -163,7 +163,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             tooltip: 'Pause',
             icon: const Icon(
               Icons.pause_circle,
-              color: const Color(0xFFFFB74D), // Orange for pause
+              color: Color(0xFFFFB74D), // Orange for pause
             ),
             onPressed: _pauseItem,
           ),
@@ -172,7 +172,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             tooltip: 'Resume',
             icon: const Icon(
               Icons.play_arrow,
-              color: const Color(0xFF64B5F6), // Light blue for resume
+              color: Color(0xFF64B5F6), // Light blue for resume
             ),
             onPressed: _resumeItem,
           ),
@@ -181,7 +181,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             tooltip: 'Stop',
             icon: const Icon(
               Icons.stop_circle,
-              color: const Color(0xFFEF5350), // Red for stop
+              color: Color(0xFFEF5350), // Red for stop
             ),
             onPressed: _stopCurrent,
           ),

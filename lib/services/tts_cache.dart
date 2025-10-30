@@ -47,10 +47,10 @@ class TtsCache {
         final size = await file.length();
         if (size > 1024) {
           // Ensure file is not empty/corrupted
-          debugPrint('Local synthesis successful: $local (${size} bytes)');
+          debugPrint('Local synthesis successful: $local ($size bytes)');
           return local;
         } else {
-          debugPrint('Local synthesis file too small: ${size} bytes');
+          debugPrint('Local synthesis file too small: $size bytes');
         }
       }
     } catch (e) {

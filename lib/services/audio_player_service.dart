@@ -79,11 +79,11 @@ class AudioPlayerService {
       final size = await file.length();
       if (size < 1024) {
         throw Exception(
-          'Audio file is too small (${size} bytes), may be corrupted',
+          'Audio file is too small ($size bytes), may be corrupted',
         );
       }
 
-      debugPrint('Audio file verified: $filePath (${size} bytes)');
+      debugPrint('Audio file verified: $filePath ($size bytes)');
     } catch (e) {
       debugPrint('File quality verification failed: $e');
       rethrow;
