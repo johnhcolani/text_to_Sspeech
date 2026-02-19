@@ -4,7 +4,6 @@ import '../providers/tts_provider.dart';
 import '../widgets/text_input_panel.dart';
 import '../widgets/control_panel.dart';
 import '../widgets/reading_panel.dart';
-import '../widgets/voice_settings_panel.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,9 +12,9 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  bool _showVoiceSettings = false; // Track whether to show voice settings
+enum _HomeMenuAction { settings, history }
 
+class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -43,58 +42,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     // Reading Panel
                     const ReadingPanel(),
-
-                    // Voice Settings Panel (shown/hidden when gear button is clicked)
-                    if (_showVoiceSettings) ...[
-                      const SizedBox(height: 24),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withAlpha(26),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withAlpha(51),
-                            width: 1,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withAlpha(51),
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(16),
-                                  topRight: Radius.circular(16),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.settings_voice,
-                                    color: Colors.blue[300],
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Voice Settings',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: VoiceSettingsPanel(),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -123,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              _buildSettingsButton(),
+              _buildMenuButton(),
             ],
           ),
           const SizedBox(height: 8),
@@ -220,14 +167,43 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSettingsButton() {
-    return IconButton(
-      icon: Icon(Icons.settings, color: Colors.white),
-      onPressed: () {
-        setState(() {
-          _showVoiceSettings = !_showVoiceSettings;
-        });
+  Widget _buildMenuButton() {
+    return PopupMenuButton<_HomeMenuAction>(
+      icon: Icon(Icons.more_vert, color: Colors.white),
+      color: const Color(0xFF293a4c),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onSelected: (action) {
+        switch (action) {
+          case _HomeMenuAction.settings:
+            Navigator.pushNamed(context, '/settings');
+            break;
+          case _HomeMenuAction.history:
+            Navigator.pushNamed(context, '/history');
+            break;
+        }
       },
+      itemBuilder: (context) => [
+        const PopupMenuItem<_HomeMenuAction>(
+          value: _HomeMenuAction.settings,
+          child: ListTile(
+            leading: Icon(Icons.settings, color: Colors.white70),
+            title: Text(
+              'Settings',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ),
+        const PopupMenuItem<_HomeMenuAction>(
+          value: _HomeMenuAction.history,
+          child: ListTile(
+            leading: Icon(Icons.history, color: Colors.white70),
+            title: Text(
+              'History',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

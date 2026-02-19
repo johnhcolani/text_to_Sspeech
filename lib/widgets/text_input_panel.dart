@@ -16,18 +16,19 @@ class _TextInputPanelState extends State<TextInputPanel> {
   bool _isProcessing = false;
   bool _ocrEnabled = true; // OCR toggle state
 
+  static const String _welcomeText =
+      "Welcome to Text to Speech!\n\nThis app converts text to natural-sounding speech with advanced features:\n\n• Type or paste text directly\n• Upload files (TXT, PDF, DOC)\n• Select photos from your library\n• Take photos with your camera\n• Anti-stuttering MP3 playback\n• Multiple languages and voices\n\nStart by typing some text or using the upload buttons below.";
+
   @override
   void initState() {
     super.initState();
     _textController.addListener(_onTextChanged);
 
-    // Add welcome text
-    _textController.text =
-        "Welcome to Text to Speech!\n\nThis app converts text to natural-sounding speech with advanced features:\n\n• Type or paste text directly\n• Upload files (TXT, PDF, DOC)\n• Select photos from your library\n• Take photos with your camera\n• Anti-stuttering MP3 playback\n• Multiple languages and voices\n\nStart by typing some text or using the upload buttons below.";
-
-    // Notify TTS provider about initial text
+    // Set welcome text and notify TTS provider after first frame to avoid
+    // "setState/markNeedsBuild called during build" (listener fires on text=)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        _textController.text = _welcomeText;
         context.read<TTSProvider>().setText(_textController.text);
       }
     });
@@ -427,6 +428,10 @@ class _TextInputPanelState extends State<TextInputPanel> {
                 controller: _textController,
                 maxLines: null, // Allow unlimited lines to prevent overflow
                 minLines: 4, // Minimum 4 lines
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) {
+                  FocusScope.of(context).unfocus();
+                },
                 style: TextStyle(
                   color: Colors.white.withAlpha(128),
                   fontSize: 16,
