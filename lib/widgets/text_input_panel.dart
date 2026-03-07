@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/tts_provider.dart';
+import '../providers/history_provider.dart';
 import '../services/file_processing_service.dart';
+import '../utils/history_actions.dart';
 
 class TextInputPanel extends StatefulWidget {
   const TextInputPanel({super.key});
@@ -229,14 +231,14 @@ class _TextInputPanelState extends State<TextInputPanel> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Text Input',
+                'Welcome to Text to Speech',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 12), // Reduced spacing
+              const SizedBox(height: 12),
               // File Upload Section
               Container(
                 padding: const EdgeInsets.all(12), // Reduced padding
@@ -471,8 +473,62 @@ class _TextInputPanelState extends State<TextInputPanel> {
                 ),
               ),
 
-              // Text management buttons – centered in screen width
+              // Play & Save + History (under text field, above other buttons)
               const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: ttsProvider.text.isEmpty
+                            ? null
+                            : () async {
+                                await playAndSaveToHistory(
+                                  context,
+                                  ttsProvider,
+                                  context.read<HistoryProvider>(),
+                                );
+                              },
+                        icon: const Icon(Icons.play_arrow, size: 24),
+                        label: const Text('Play & Save', style: TextStyle(fontSize: 16)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF64B5F6),
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.grey.withOpacity(0.5),
+                          minimumSize: const Size(0, 48),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(800),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.history, size: 22),
+                      label: const Text('History', style: TextStyle(fontSize: 16)),
+                      onPressed: () => Navigator.pushNamed(context, '/history'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF64B5F6),
+                        side: BorderSide(
+                          color: const Color(0xFF64B5F6).withOpacity(0.5),
+                        ),
+                        minimumSize: const Size(0, 48),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(800),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Text management buttons – centered in screen width
               SizedBox(
                 width: double.infinity,
                 child: Wrap(

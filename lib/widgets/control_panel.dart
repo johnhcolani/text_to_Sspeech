@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/tts_provider.dart';
-import '../providers/history_provider.dart';
-import '../utils/history_actions.dart';
 
 class ControlPanel extends StatelessWidget {
   const ControlPanel({super.key});
@@ -150,46 +148,6 @@ class ControlPanel extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(width: 12),
-
-                    // Status indicator
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(
-                          ttsProvider.ttsState,
-                        ).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: _getStatusColor(
-                            ttsProvider.ttsState,
-                          ).withOpacity(0.3),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _getStatusIcon(ttsProvider.ttsState),
-                            color: _getStatusColor(ttsProvider.ttsState),
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _getStatusText(ttsProvider.ttsState),
-                            style: TextStyle(
-                              color: _getStatusColor(ttsProvider.ttsState),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
                     // Progress indicator
                     if (ttsProvider.progressActive &&
                         ttsProvider.text.isNotEmpty) ...[
@@ -263,15 +221,14 @@ class ControlPanel extends StatelessWidget {
 
                     const SizedBox(height: 16),
 
-                    // Main control buttons – same height so Play and Stop align in row
+                    // Play / Pause row (real-time TTS)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Play/Pause button
                         Expanded(
                           child: SizedBox(
-                            height: 56,
+                            height: 48,
                             child: ElevatedButton.icon(
                               onPressed: () {
                                 if (ttsProvider.ttsState == TTSState.playing) {
@@ -300,25 +257,24 @@ class ControlPanel extends StatelessWidget {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue,
                                 foregroundColor: Colors.white,
-                                minimumSize: const Size(0, 56),
+                                minimumSize: const Size(0, 48),
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(800),
                                 ),
                               ),
                             ),
                           ),
                         ),
-
-                        // Stop button – same row height, no label so it aligns with Play
+                        const SizedBox(width: 24),
                         SizedBox(
-                          height: 56,
-                          width: 56,
+                          height: 48,
+                          width: 48,
                           child: Material(
                             color: ttsProvider.ttsState == TTSState.stopped
                                 ? const Color(0xFFEF5350).withOpacity(0.5)
                                 : const Color(0xFFEF5350),
-                            borderRadius: BorderRadius.circular(28),
+                            borderRadius: BorderRadius.circular(800),
                             clipBehavior: Clip.antiAlias,
                             child: IconButton(
                               onPressed: ttsProvider.ttsState == TTSState.stopped
@@ -457,44 +413,6 @@ class ControlPanel extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                     ],
-
-                    // Action buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: FilledButton.icon(
-                            icon: const Icon(Icons.play_arrow),
-                            label: const Text('Play & Save'),
-                            onPressed: ttsProvider.text.isEmpty
-                                ? null
-                                : () async {
-                                    await playAndSaveToHistory(
-                                      context,
-                                      ttsProvider,
-                                      context.read<HistoryProvider>(),
-                                    );
-                                  },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.history),
-                          label: const Text('History'),
-                          onPressed: () =>
-                              Navigator.pushNamed(context, '/history'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(
-                              0xFF64B5F6,
-                            ), // Light blue text
-                            side: BorderSide(
-                              color: const Color(
-                                0xFF64B5F6,
-                              ).withOpacity(0.5), // Light blue border
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -548,45 +466,6 @@ class ControlPanel extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  Color _getStatusColor(TTSState state) {
-    switch (state) {
-      case TTSState.playing:
-        return const Color(0xFF4CAF50); // Brighter green
-      case TTSState.paused:
-        return const Color(0xFFFF9800); // Brighter orange
-      case TTSState.stopped:
-        return const Color(0xFF9E9E9E); // Brighter grey
-      case TTSState.continued:
-        return const Color(0xFF2196F3); // Brighter blue
-    }
-  }
-
-  IconData _getStatusIcon(TTSState state) {
-    switch (state) {
-      case TTSState.playing:
-        return Icons.play_arrow;
-      case TTSState.paused:
-        return Icons.pause;
-      case TTSState.stopped:
-        return Icons.stop;
-      case TTSState.continued:
-        return Icons.play_arrow;
-    }
-  }
-
-  String _getStatusText(TTSState state) {
-    switch (state) {
-      case TTSState.playing:
-        return 'Playing';
-      case TTSState.paused:
-        return 'Paused';
-      case TTSState.stopped:
-        return 'Stopped';
-      case TTSState.continued:
-        return 'Playing';
-    }
   }
 
   void _showVoicePicker(BuildContext context, TTSProvider ttsProvider) {
