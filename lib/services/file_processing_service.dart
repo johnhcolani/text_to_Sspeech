@@ -49,6 +49,7 @@ class FileProcessingService {
           statuses[permission] = await permission.status;
         }
       }
+      // macOS: no mobile-style permissions; system dialogs handle file/photo access
 
       return statuses;
     } catch (e) {
@@ -64,7 +65,6 @@ class FileProcessingService {
 
       if (Platform.isAndroid) {
         // Request all necessary permissions for Android
-        // The system will handle which ones are actually needed
         permissions = [
           Permission.camera,
           Permission.photos,
@@ -72,16 +72,17 @@ class FileProcessingService {
           Permission.manageExternalStorage,
         ];
       } else if (Platform.isIOS) {
-        // iOS permissions - these are handled by the system when needed
+        // iOS permissions - handled by the system when needed
         permissions = [
           Permission.camera,
           Permission.photos,
           Permission.microphone,
         ];
       }
+      // macOS: no permission request; sandbox + system dialogs handle access
 
       if (permissions.isEmpty) {
-        return true; // iOS handles permissions automatically
+        return true; // iOS/macOS handle permissions via system
       }
 
       print('Requesting permissions: $permissions');
@@ -367,7 +368,7 @@ class FileProcessingService {
       for (TextBlock block in recognizedText.blocks) {
         for (TextLine line in block.lines) {
           for (TextElement element in line.elements) {
-            extractedText += element.text + ' ';
+            extractedText += '${element.text} ';
           }
           extractedText += '\n';
         }

@@ -377,6 +377,49 @@ class SettingsScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                ] else if (Platform.isMacOS) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF64B5F6).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFF64B5F6).withOpacity(0.4),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.laptop_mac,
+                              color: const Color(0xFF64B5F6),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'macOS',
+                              style: TextStyle(
+                                color: const Color(0xFF64B5F6),
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          '• Native Mac text-to-speech\n• File-based playback (stutter-free)\n• Save to file and history',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 13,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
 
                 const SizedBox(height: 16), // Reduced spacing

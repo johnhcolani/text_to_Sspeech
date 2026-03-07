@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show SystemChannels;
 import 'package:provider/provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/history_provider.dart';
@@ -264,62 +263,71 @@ class ControlPanel extends StatelessWidget {
 
                     const SizedBox(height: 16),
 
-                    // Main control buttons
+                    // Main control buttons – same height so Play and Stop align in row
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         // Play/Pause button
                         Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              if (ttsProvider.ttsState == TTSState.playing) {
-                                ttsProvider.pause();
-                              } else if (ttsProvider.ttsState ==
-                                  TTSState.paused) {
-                                ttsProvider.resume();
-                              } else {
-                                // Use smart speak method that automatically uses MP3 when offline
-                                ttsProvider.speakSmart();
-                              }
-                            },
-                            icon: Icon(
-                              ttsProvider.ttsState == TTSState.playing
-                                  ? Icons.pause
-                                  : Icons.play_arrow,
-                              size: 24,
-                            ),
-                            label: Text(
-                              ttsProvider.ttsState == TTSState.playing
-                                  ? 'Pause'
-                                  : ttsProvider.ttsState == TTSState.paused
-                                  ? 'Resume'
-                                  : 'Play',
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                          child: SizedBox(
+                            height: 56,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                if (ttsProvider.ttsState == TTSState.playing) {
+                                  ttsProvider.pause();
+                                } else if (ttsProvider.ttsState ==
+                                    TTSState.paused) {
+                                  ttsProvider.resume();
+                                } else {
+                                  ttsProvider.speakSmart();
+                                }
+                              },
+                              icon: Icon(
+                                ttsProvider.ttsState == TTSState.playing
+                                    ? Icons.pause
+                                    : Icons.play_arrow,
+                                size: 24,
+                              ),
+                              label: Text(
+                                ttsProvider.ttsState == TTSState.playing
+                                    ? 'Pause'
+                                    : ttsProvider.ttsState == TTSState.paused
+                                    ? 'Resume'
+                                    : 'Play',
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size(0, 56),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                             ),
                           ),
                         ),
 
-                        // Stop button
-                        _buildControlButton(
-                          context: context,
-                          onPressed: ttsProvider.ttsState == TTSState.stopped
-                              ? null
-                              : ttsProvider.stop,
-                          icon: Icons.stop,
-                          label: '',
-                          backgroundColor: const Color(
-                            0xFFEF5350,
-                          ), // Red background
-                          foregroundColor: Colors.white, // White text and icon
-                          size: 50,
+                        // Stop button – same row height, no label so it aligns with Play
+                        SizedBox(
+                          height: 56,
+                          width: 56,
+                          child: Material(
+                            color: ttsProvider.ttsState == TTSState.stopped
+                                ? const Color(0xFFEF5350).withOpacity(0.5)
+                                : const Color(0xFFEF5350),
+                            borderRadius: BorderRadius.circular(28),
+                            clipBehavior: Clip.antiAlias,
+                            child: IconButton(
+                              onPressed: ttsProvider.ttsState == TTSState.stopped
+                                  ? null
+                                  : ttsProvider.stop,
+                              icon: const Icon(Icons.stop, size: 28, color: Colors.white),
+                              tooltip: 'Stop',
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -442,74 +450,6 @@ class ControlPanel extends StatelessWidget {
                               style: TextStyle(
                                 color: Colors.white, // White text
                                 fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // File upload functionality removed - focusing on core TTS functionality
-                    const SizedBox(height: 16),
-
-                    // Keyboard management
-                    if (MediaQuery.of(context).viewInsets.bottom > 0) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(
-                            0xFF64B5F6,
-                          ).withOpacity(0.2), // Light blue with opacity
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(
-                              0xFF64B5F6,
-                            ).withOpacity(0.4), // Light blue border
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.keyboard,
-                              color: const Color(0xFF64B5F6), // Light blue icon
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Keyboard Active',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white, // White text
-                                ),
-                              ),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: () {
-                                // Hide keyboard
-                                FocusScope.of(context).unfocus();
-                                // Also hide keyboard on iOS
-                                SystemChannels.textInput.invokeMethod(
-                                  'TextInput.hide',
-                                );
-                              },
-                              icon: const Icon(Icons.keyboard_hide, size: 18),
-                              label: const Text('Hide'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(
-                                  0xFF64B5F6,
-                                ), // Light blue text
-                                side: BorderSide(
-                                  color: const Color(
-                                    0xFF64B5F6,
-                                  ).withOpacity(0.5), // Light blue border
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
                               ),
                             ),
                           ],

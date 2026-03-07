@@ -10,19 +10,22 @@ Future<void> playAndSaveToHistory(
   HistoryProvider historyProvider,
 ) async {
   try {
-    // 1) Play using the correct method name
-    await ttsProvider.speak();
-
-    // 2) Try to export to high-quality file (if supported)
+    // 1) Prefer file-based: synthesize to file first, then play file (stutter-free)
     String? path;
-
-    // Check if device supports file synthesis
     final supportsFileSynthesis = await ttsProvider.isFileSynthesisSupported();
     if (supportsFileSynthesis) {
       path = await ttsProvider.synthesizeToFileHighQuality();
+      if (path != null) {
+        ttsProvider.setCachedAudioPath(path);
+        await ttsProvider.playSavedAudio(path);
+      }
+    }
+    // 2) If no file could be generated, fall back to real-time TTS
+    if (path == null) {
+      await ttsProvider.speak();
     }
 
-    // 3) Save metadata + optional file path
+    // 3) Save metadata + file path when available (enables offline replay from history)
     final item = TtsHistoryItem(
       id: const Uuid().v4(),
       text: ttsProvider.text,

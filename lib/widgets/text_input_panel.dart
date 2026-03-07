@@ -413,7 +413,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
                               ),
                             );
                           },
-                          activeColor: Colors.green[300],
+                          activeThumbColor: Colors.green[300],
                           inactiveThumbColor: Colors.orange[300],
                         ),
                       ],
@@ -471,15 +471,15 @@ class _TextInputPanelState extends State<TextInputPanel> {
                 ),
               ),
 
-              // Text management buttons
+              // Text management buttons – centered in screen width
               const SizedBox(height: 12),
-              // Make buttons wrap on small screens
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.end,
-                children: [
-                  // Debug button to test text setting
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
                   OutlinedButton.icon(
                     onPressed: () {
                       _textController.text =
@@ -521,22 +521,8 @@ class _TextInputPanelState extends State<TextInputPanel> {
                       ),
                     ),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      FocusScope.of(context).unfocus();
-                    },
-                    icon: const Icon(Icons.keyboard_hide, size: 18),
-                    label: const Text('Hide Keyboard'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.blue[300],
-                      side: BorderSide(color: Colors.blue[300]!),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
-                  ),
                 ],
+                ),
               ),
             ],
           ),

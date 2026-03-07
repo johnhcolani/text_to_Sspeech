@@ -113,7 +113,7 @@ class _VoiceSettingsPanelState extends State<VoiceSettingsPanel> {
                       title: 'Language',
                       icon: Icons.language,
                       child: DropdownButtonFormField<String>(
-                        value: ttsProvider.selectedLanguage,
+                        initialValue: ttsProvider.selectedLanguage,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 11,
@@ -202,7 +202,7 @@ class _VoiceSettingsPanelState extends State<VoiceSettingsPanel> {
                               children: [
                                 Expanded(
                                   child: DropdownButtonFormField<String>(
-                                    value: ttsProvider.voices.isNotEmpty 
+                                    initialValue: ttsProvider.voices.isNotEmpty 
                                         ? _getUniqueVoiceValue(ttsProvider.selectedVoice, ttsProvider.voices)
                                         : null,
                                     style: const TextStyle(

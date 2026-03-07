@@ -54,9 +54,11 @@ class _ReadingPanelState extends State<ReadingPanel> {
         if (lines.isEmpty) {
           return Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             decoration: _box(context),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.text_fields,
@@ -65,9 +67,11 @@ class _ReadingPanelState extends State<ReadingPanel> {
                     context,
                   ).colorScheme.onSurface.withOpacity(0.3),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text(
                   'Nothing to read yet.',
+                  textAlign: TextAlign.center,
+                  softWrap: true,
                   style: TextStyle(
                     color: Theme.of(
                       context,
@@ -75,9 +79,11 @@ class _ReadingPanelState extends State<ReadingPanel> {
                     fontSize: 16,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   'Upload a file or type text to get started',
+                  textAlign: TextAlign.center,
+                  softWrap: true,
                   style: TextStyle(
                     color: Theme.of(
                       context,

@@ -107,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
               runSpacing: 12,
               children: [
                 // Language Selection
-                Container(
+                SizedBox(
                   width: 180,
                   height: 60,
                   child: ActionChip(
@@ -131,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
 
                 // Voice Selection
-                Container(
+                SizedBox(
                   width: 180,
                   height: 60,
                   child: ActionChip(
@@ -168,9 +168,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildMenuButton() {
+    const Color background = Color(0xFF293a4c);
+    final Color menuColor = Color.lerp(background, Colors.white, 0.1)!;
     return PopupMenuButton<_HomeMenuAction>(
       icon: Icon(Icons.more_vert, color: Colors.white),
-      color: const Color(0xFF293a4c),
+      color: menuColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onSelected: (action) {
         switch (action) {

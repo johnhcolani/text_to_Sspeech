@@ -18,6 +18,9 @@ class TTSProvider extends ChangeNotifier {
   late final DatabaseService _databaseService;
   late final AudioPlayer _audioPlayer;
 
+  /// Cancelled when starting new playback to avoid multiple completion callbacks
+  StreamSubscription<PlayerState>? _playerStateSubscription;
+
   // TTS state
   TTSState _ttsState = TTSState.stopped;
 
@@ -473,15 +476,27 @@ class TTSProvider extends ChangeNotifier {
     }
   }
 
+  /// Clear cached file so next play uses current text/voice/rate/pitch
+  void _invalidateCachedFile() {
+    _lastGeneratedMP3Path = null;
+  }
+
+  /// Call after generating a file (e.g. from Play & Save) so main Play can reuse it
+  void setCachedAudioPath(String? path) {
+    _lastGeneratedMP3Path = path;
+  }
+
   // ---------- Settings setters ----------
   Future<void> setText(String value) async {
     _text = value;
+    _invalidateCachedFile();
     _initializeWordTracking();
     notifyListeners();
   }
 
   Future<void> setRate(double value) async {
     _rate = value.clamp(0.1, 1.0);
+    _invalidateCachedFile();
     await _databaseService.setSetting('rate', _rate.toString());
     await _tts.setSpeechRate(_rate);
     notifyListeners();
@@ -489,6 +504,7 @@ class TTSProvider extends ChangeNotifier {
 
   Future<void> setPitch(double value) async {
     _pitch = value.clamp(0.5, 2.0);
+    _invalidateCachedFile();
     await _databaseService.setSetting('pitch', _pitch.toString());
     await _tts.setPitch(_pitch);
     notifyListeners();
@@ -503,6 +519,7 @@ class TTSProvider extends ChangeNotifier {
 
   Future<void> setLanguage(String value) async {
     _selectedLanguage = value;
+    _invalidateCachedFile();
     await _databaseService.setSetting('selectedLanguage', _selectedLanguage);
     await _tts.setLanguage(_selectedLanguage);
     _autoPickVoiceForLanguage();
@@ -511,6 +528,7 @@ class TTSProvider extends ChangeNotifier {
 
   Future<void> setVoice(String value) async {
     _selectedVoice = value;
+    _invalidateCachedFile();
     await _databaseService.setSetting('selectedVoice', _selectedVoice);
     await _applyVoice();
     notifyListeners();
@@ -725,17 +743,30 @@ class TTSProvider extends ChangeNotifier {
   Future<void> playSavedAudio(String filePath) async {
     try {
       _clearError();
+      if (filePath.isEmpty) {
+        _setError('No audio file path');
+        return;
+      }
+      final file = File(filePath);
+      if (!await file.exists()) {
+        _setError('Audio file not found');
+        debugPrint('TTS: playSavedAudio file missing: $filePath');
+        notifyListeners();
+        return;
+      }
+
+      await _playerStateSubscription?.cancel();
+      _playerStateSubscription = null;
+
       _ttsState = TTSState.playing;
       _progressActive = true;
       _startWordHighlighting();
       notifyListeners();
 
-      // Use the high-quality audio player for saved files
       await _audioPlayer.setFilePath(filePath);
       await _audioPlayer.play();
 
-      // Listen for completion
-      _audioPlayer.playerStateStream.listen((state) {
+      _playerStateSubscription = _audioPlayer.playerStateStream.listen((state) {
         if (state.processingState == ProcessingState.completed) {
           _ttsState = TTSState.stopped;
           _progressActive = false;
@@ -803,33 +834,18 @@ class TTSProvider extends ChangeNotifier {
     }
   }
 
-  // ---------- Smart offline detection and MP3 fallback ----------
-  bool _isOffline = false;
+  // ---------- File-first playback (stutter-free) ----------
   String? _lastGeneratedMP3Path;
 
-  /// Check if device is offline and should use MP3 files
-  Future<bool> _checkOfflineStatus() async {
-    try {
-      // Try to access a simple online resource
-      final result = await InternetAddress.lookup('google.com');
-      _isOffline = result.isEmpty;
-    } catch (e) {
-      _isOffline = true;
-    }
-
-    debugPrint('TTS: Offline status: $_isOffline');
-    return _isOffline;
-  }
-
-  /// Smart speak method that automatically uses MP3 when offline
+  /// File-first speak: prefer synthesizing to file then playing (no stuttering).
+  /// Uses real-time TTS only when file synthesis is not supported.
   Future<void> speakSmart() async {
-    final isOffline = await _checkOfflineStatus();
-
-    if (isOffline) {
-      debugPrint('TTS: Offline detected, using MP3 fallback');
+    final supportsFile = await isFileSynthesisSupported();
+    if (supportsFile) {
+      debugPrint('TTS: Using file-based playback (stutter-free)');
       await _speakWithMP3Fallback();
     } else {
-      debugPrint('TTS: Online, using real-time TTS');
+      debugPrint('TTS: File synthesis not supported, using real-time TTS');
       await speak();
     }
   }
@@ -982,16 +998,15 @@ class TTSProvider extends ChangeNotifier {
             return mp3Path;
           }
         }
-      } else if (Platform.isIOS) {
-        // On iOS, WAV files are often high quality and can be used directly
-        // Rename the extension to .mp3 for consistency
+      } else if (Platform.isIOS || Platform.isMacOS) {
+        // On iOS/macOS, WAV files are often high quality; use for consistency
         final wavFile = File(wavPath);
         final mp3File = File(mp3Path);
 
         if (await wavFile.exists()) {
           await wavFile.copy(mp3Path);
           if (await mp3File.exists()) {
-            debugPrint('TTS: WAV copied as MP3 on iOS');
+            debugPrint('TTS: WAV copied as MP3 on ${Platform.isMacOS ? "macOS" : "iOS"}');
             return mp3Path;
           }
         }
