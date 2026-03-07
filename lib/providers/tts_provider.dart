@@ -837,9 +837,25 @@ class TTSProvider extends ChangeNotifier {
   // ---------- File-first playback (stutter-free) ----------
   String? _lastGeneratedMP3Path;
 
-  /// File-first speak: prefer synthesizing to file then playing (no stuttering).
-  /// Uses real-time TTS only when file synthesis is not supported.
+  /// When offline, always use file playback to avoid stuttering (no streaming).
+  Future<bool> _isOffline() async {
+    try {
+      await InternetAddress.lookup('google.com');
+      return false;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// File-first speak: when offline always use saved file (no stuttering).
+  /// When online, use file when supported, else real-time TTS.
   Future<void> speakSmart() async {
+    final offline = await _isOffline();
+    if (offline) {
+      debugPrint('TTS: Offline – using file-based playback only (no streaming)');
+      await _speakWithMP3Fallback();
+      return;
+    }
     final supportsFile = await isFileSynthesisSupported();
     if (supportsFile) {
       debugPrint('TTS: Using file-based playback (stutter-free)');
@@ -904,7 +920,10 @@ class TTSProvider extends ChangeNotifier {
       await _tts.setPitch(_pitch);
       await _tts.setVolume(_volume);
 
-      final dir = await getApplicationDocumentsDirectory();
+      // Save to persistent app folder (TTS_audio) so file is always on device for offline playback
+      final baseDir = await getApplicationDocumentsDirectory();
+      final dir = Directory(p.join(baseDir.path, 'TTS_audio'));
+      if (!await dir.exists()) await dir.create(recursive: true);
       final id = const Uuid().v4();
       final fileNameOnly = 'tts_hq_$id.mp3';
       final fullPath = p.join(dir.path, fileNameOnly);
