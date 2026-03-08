@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/tts_provider.dart';
+import '../providers/theme_provider.dart';
+import '../utils/app_theme.dart';
 import '../widgets/text_input_panel.dart';
 import '../widgets/control_panel.dart';
 import '../widgets/reading_panel.dart';
@@ -12,13 +14,14 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-enum _HomeMenuAction { settings, history }
+enum _HomeMenuAction { settings, history, colorTheme }
 
 class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
+    final scaffoldBg = context.watch<ThemeProvider>().scaffoldBackground;
     return Scaffold(
-      backgroundColor: const Color(0xFF293a4c),
+      backgroundColor: scaffoldBg,
       body: SafeArea(
         child: Column(
           children: [
@@ -88,8 +91,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildLanguageVoiceSelection() {
-    return Consumer<TTSProvider>(
-      builder: (context, tts, child) {
+    return Consumer2<TTSProvider, ThemeProvider>(
+      builder: (context, tts, themeProvider, child) {
+        final accent = themeProvider.accentColor;
+        final chipStyle = TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        );
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -102,60 +111,36 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
+            Row(
               children: [
                 // Language Selection
-                SizedBox(
-                  width: 180,
-                  height: 60,
+                Expanded(
                   child: ActionChip(
-                    avatar: Icon(Icons.language, color: Colors.white, size: 24),
+                    avatar: Icon(Icons.language, color: Colors.white, size: 22),
                     label: Text(
                       tts.selectedLanguage,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: chipStyle,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    backgroundColor: Colors.blue.withAlpha(153),
-                    side: BorderSide(
-                      color: Colors.blue.withAlpha(204),
-                      width: 1,
-                    ),
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    backgroundColor: accent.withAlpha(153),
+                    side: BorderSide(color: accent.withAlpha(204), width: 1),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     onPressed: () => _showLanguageSelection(),
                   ),
                 ),
-
+                const SizedBox(width: 12),
                 // Voice Selection
-                SizedBox(
-                  width: 180,
-                  height: 60,
+                Expanded(
                   child: ActionChip(
-                    avatar: Icon(
-                      Icons.record_voice_over,
-                      color: Colors.white,
-                      size: 24,
-                    ),
+                    avatar: Icon(Icons.record_voice_over, color: Colors.white, size: 22),
                     label: Text(
-                      tts.selectedVoice.isNotEmpty
-                          ? tts.selectedVoice
-                          : 'Voice',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      tts.selectedVoice.isNotEmpty ? tts.selectedVoice : 'Voice',
+                      style: chipStyle,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    backgroundColor: Colors.green.withAlpha(153),
-                    side: BorderSide(
-                      color: Colors.green.withAlpha(204),
-                      width: 1,
-                    ),
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    backgroundColor: accent.withAlpha(153),
+                    side: BorderSide(color: accent.withAlpha(204), width: 1),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     onPressed: () => _showVoiceSelection(),
                   ),
                 ),
@@ -167,8 +152,125 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showThemePicker(BuildContext context) {
+    final themeProvider = context.read<ThemeProvider>();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: themeProvider.scaffoldBackground,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 8),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white30,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Icon(Icons.palette, color: themeProvider.accentColor, size: 24),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Color theme',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: AppTheme.values.map((theme) {
+                      final isSelected = themeProvider.current == theme;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Material(
+                          color: theme.surfaceColor.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(12),
+                          child: InkWell(
+                            onTap: () {
+                              themeProvider.setTheme(theme);
+                              Navigator.pop(context);
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: theme.scaffoldBackground,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: theme.accentColor.withOpacity(0.6)),
+                                    ),
+                                    child: Icon(theme.icon, color: theme.accentColor, size: 24),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          theme.displayName,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          theme.description,
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    Icon(Icons.check_circle, color: themeProvider.accentColor, size: 24),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildMenuButton() {
-    const Color background = Color(0xFF293a4c);
+    final background = context.watch<ThemeProvider>().scaffoldBackground;
     final Color menuColor = Color.lerp(background, Colors.white, 0.1)!;
     return PopupMenuButton<_HomeMenuAction>(
       icon: Icon(Icons.more_vert, color: Colors.white),
@@ -181,6 +283,9 @@ class _HomeScreenState extends State<HomeScreen> {
             break;
           case _HomeMenuAction.history:
             Navigator.pushNamed(context, '/history');
+            break;
+          case _HomeMenuAction.colorTheme:
+            _showThemePicker(context);
             break;
         }
       },
@@ -201,6 +306,16 @@ class _HomeScreenState extends State<HomeScreen> {
             leading: Icon(Icons.history, color: Colors.white70),
             title: Text(
               'History',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ),
+        const PopupMenuItem<_HomeMenuAction>(
+          value: _HomeMenuAction.colorTheme,
+          child: ListTile(
+            leading: Icon(Icons.palette_outlined, color: Colors.white70),
+            title: Text(
+              'Color theme',
               style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
             ),
           ),

@@ -221,7 +221,7 @@ class ControlPanel extends StatelessWidget {
 
                     const SizedBox(height: 16),
 
-                    // Play / Pause row (real-time TTS)
+                    // Play / Pause row (real-time TTS) – same style as Play & Save
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -244,7 +244,7 @@ class ControlPanel extends StatelessWidget {
                                 ttsProvider.ttsState == TTSState.playing
                                     ? Icons.pause
                                     : Icons.play_arrow,
-                                size: 24,
+                                size: 22,
                               ),
                               label: Text(
                                 ttsProvider.ttsState == TTSState.playing
@@ -255,12 +255,12 @@ class ControlPanel extends StatelessWidget {
                                 style: const TextStyle(fontSize: 16),
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
+                                backgroundColor: Theme.of(context).colorScheme.primary,
                                 foregroundColor: Colors.white,
                                 minimumSize: const Size(0, 48),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(800),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
                             ),
@@ -274,7 +274,7 @@ class ControlPanel extends StatelessWidget {
                             color: ttsProvider.ttsState == TTSState.stopped
                                 ? const Color(0xFFEF5350).withOpacity(0.5)
                                 : const Color(0xFFEF5350),
-                            borderRadius: BorderRadius.circular(800),
+                            borderRadius: BorderRadius.circular(12),
                             clipBehavior: Clip.antiAlias,
                             child: IconButton(
                               onPressed: ttsProvider.ttsState == TTSState.stopped

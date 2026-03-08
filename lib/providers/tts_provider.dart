@@ -21,6 +21,10 @@ class TTSProvider extends ChangeNotifier {
   /// Cancelled when starting new playback to avoid multiple completion callbacks
   StreamSubscription<PlayerState>? _playerStateSubscription;
 
+  /// Position updates when playing saved audio – used to sync word highlight with playback
+  StreamSubscription<Duration>? _positionSubscription;
+  Duration? _savedAudioDuration;
+
   // TTS state
   TTSState _ttsState = TTSState.stopped;
 

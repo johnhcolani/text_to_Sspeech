@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:text_to_speech/providers/history_provider.dart';
+import 'package:text_to_speech/providers/theme_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/history_screen.dart';
@@ -20,12 +21,16 @@ void main() async {
   
   final ttsProvider = TTSProvider();
   await ttsProvider.initialize();
+
+  final themeProvider = ThemeProvider();
+  await themeProvider.load();
   
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: ttsProvider),
         ChangeNotifierProvider(create: (_) => HistoryProvider()..load()),
+        ChangeNotifierProvider.value(value: themeProvider),
       ],
       child: const MyApp(),
     ),
@@ -37,27 +42,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, _) {
+        return MaterialApp(
         title: 'Text to Speech',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue,
-            brightness: Brightness.light,
-          ),
-          useMaterial3: true,
-          // Accessibility improvements
-          visualDensity: VisualDensity.adaptivePlatformDensity,
-        ),
-        darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue,
-            brightness: Brightness.dark,
-          ),
-          useMaterial3: true,
-          // Accessibility improvements
-          visualDensity: VisualDensity.adaptivePlatformDensity,
-        ),
+        theme: themeProvider.currentThemeData,
         home: const SplashScreen(), // Restored original splash screen
         routes: {
           '/home': (context) => const HomeScreen(),
@@ -74,5 +64,7 @@ class MyApp extends StatelessWidget {
           );
         },
       );
+      },
+    );
   }
 }

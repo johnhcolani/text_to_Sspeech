@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../model/tts_history_item.dart';
 import '../providers/history_provider.dart';
 import '../providers/tts_provider.dart';
+import '../providers/theme_provider.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -128,7 +129,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   bool _isCurrent(String id) => _currentId == id;
 
-  Widget _buildControls(BuildContext context, TtsHistoryItem item) {
+  Widget _buildControls(BuildContext context, TtsHistoryItem item, Color accent) {
     final isCurrent = _isCurrent(item.id);
     final ttsState = context.watch<TTSProvider>().ttsState;
 
@@ -150,29 +151,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
         if (showPlay)
           IconButton(
             tooltip: 'Play',
-            icon: const Icon(
+            icon: Icon(
               Icons.play_circle,
-              color: Color(
-                0xFF64B5F6,
-              ), // Light blue for better visibility
+              color: accent,
             ),
             onPressed: () => _startItem(item),
           ),
         if (showPause)
           IconButton(
             tooltip: 'Pause',
-            icon: const Icon(
+            icon: Icon(
               Icons.pause_circle,
-              color: Color(0xFFFFB74D), // Orange for pause
+              color: accent.withOpacity(0.9),
             ),
             onPressed: _pauseItem,
           ),
         if (showResume)
           IconButton(
             tooltip: 'Resume',
-            icon: const Icon(
+            icon: Icon(
               Icons.play_arrow,
-              color: Color(0xFF64B5F6), // Light blue for resume
+              color: accent,
             ),
             onPressed: _resumeItem,
           ),
@@ -191,16 +190,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final bg = themeProvider.scaffoldBackground;
     return Scaffold(
-      backgroundColor: const Color(
-        0xFF293a4c,
-      ), // Using the same color as splash screen
+      backgroundColor: bg,
       appBar: AppBar(
         title: const Text(
           'TTS History',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: const Color(0xFF293a4c),
+        backgroundColor: bg,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         bottom: PreferredSize(
@@ -279,6 +278,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     TTSProvider ttsProvider,
     HistoryProvider historyProvider,
   ) {
+    final accent = context.read<ThemeProvider>().accentColor;
     final isExpanded = _isExpanded(item.id);
 
     return Dismissible(
@@ -427,14 +427,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       onPressed: () => _toggleExpansion(item.id),
                       icon: Icon(
                         isExpanded ? Icons.expand_less : Icons.expand_more,
-                        color: const Color(0xFF64B5F6),
+                        color: accent,
                       ),
                       tooltip: isExpanded
                           ? 'Collapse'
                           : 'Expand to read full text',
                     ),
                     // Play controls
-                    _buildControls(context, item),
+                    _buildControls(context, item, accent),
                   ],
                 ),
               ),
@@ -462,13 +462,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         Icon(
                           Icons.text_fields,
                           size: 16,
-                          color: const Color(0xFF64B5F6),
+                          color: accent,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'Full Text:',
                           style: TextStyle(
-                            color: const Color(0xFF64B5F6),
+                            color: accent,
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
@@ -500,10 +500,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     TtsHistoryItem item,
     HistoryProvider historyProvider,
   ) {
+    final bg = context.read<ThemeProvider>().scaffoldBackground;
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF293a4c),
+        backgroundColor: bg,
         title: const Text(
           'Delete History Item',
           style: TextStyle(color: Colors.white),

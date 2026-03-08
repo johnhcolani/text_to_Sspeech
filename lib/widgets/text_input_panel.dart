@@ -478,51 +478,29 @@ class _TextInputPanelState extends State<TextInputPanel> {
               Row(
                 children: [
                   Expanded(
-                    child: SizedBox(
-                      height: 48,
-                      child: ElevatedButton.icon(
-                        onPressed: ttsProvider.text.isEmpty
-                            ? null
-                            : () async {
-                                await playAndSaveToHistory(
-                                  context,
-                                  ttsProvider,
-                                  context.read<HistoryProvider>(),
-                                );
-                              },
-                        icon: const Icon(Icons.play_arrow, size: 24),
-                        label: const Text('Play & Save', style: TextStyle(fontSize: 16)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF64B5F6),
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor: Colors.grey.withOpacity(0.5),
-                          minimumSize: const Size(0, 48),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(800),
-                          ),
-                        ),
-                      ),
+                    child: _primaryActionButton(
+                      context: context,
+                      onPressed: ttsProvider.text.isEmpty
+                          ? null
+                          : () async {
+                              await playAndSaveToHistory(
+                                context,
+                                ttsProvider,
+                                context.read<HistoryProvider>(),
+                              );
+                            },
+                      icon: Icons.play_arrow,
+                      label: 'Play & Save',
                     ),
                   ),
                   const SizedBox(width: 12),
                   SizedBox(
                     height: 48,
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.history, size: 22),
-                      label: const Text('History', style: TextStyle(fontSize: 16)),
+                    child: _secondaryActionButton(
+                      context: context,
                       onPressed: () => Navigator.pushNamed(context, '/history'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF64B5F6),
-                        side: BorderSide(
-                          color: const Color(0xFF64B5F6).withOpacity(0.5),
-                        ),
-                        minimumSize: const Size(0, 48),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(800),
-                        ),
-                      ),
+                      icon: Icons.history,
+                      label: 'History',
                     ),
                   ),
                 ],
@@ -584,6 +562,59 @@ class _TextInputPanelState extends State<TextInputPanel> {
           ),
         );
       },
+    );
+  }
+
+  static const _actionButtonHeight = 48.0;
+  static const _actionBorderRadius = 12.0;
+
+  Widget _primaryActionButton({
+    required BuildContext context,
+    required VoidCallback? onPressed,
+    required IconData icon,
+    required String label,
+  }) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return SizedBox(
+      height: _actionButtonHeight,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 22),
+        label: Text(label, style: const TextStyle(fontSize: 16)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primary,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: Colors.grey.withOpacity(0.5),
+          minimumSize: const Size(0, _actionButtonHeight),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_actionBorderRadius),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _secondaryActionButton({
+    required BuildContext context,
+    required VoidCallback onPressed,
+    required IconData icon,
+    required String label,
+  }) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 22),
+      label: Text(label, style: const TextStyle(fontSize: 16)),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: primary,
+        side: BorderSide(color: primary.withOpacity(0.7)),
+        minimumSize: const Size(0, _actionButtonHeight),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_actionBorderRadius),
+        ),
+      ),
     );
   }
 }
