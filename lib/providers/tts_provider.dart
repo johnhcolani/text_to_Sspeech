@@ -12,6 +12,18 @@ import 'package:just_audio/just_audio.dart';
 
 enum TTSState { playing, stopped, paused, continued }
 
+/// Car-friendly audio load config: larger preload buffer to reduce stutter.
+const AudioLoadConfiguration _carAudioLoadConfig = AudioLoadConfiguration(
+  darwinLoadControl: DarwinLoadControl(
+    automaticallyWaitsToMinimizeStalling: false,
+    preferredForwardBufferDuration: Duration(seconds: 30),
+  ),
+  androidLoadControl: AndroidLoadControl(
+    bufferForPlaybackDuration: Duration(seconds: 5),
+    bufferForPlaybackAfterRebufferDuration: Duration(seconds: 8),
+  ),
+);
+
 class TTSProvider extends ChangeNotifier {
   // ---------- Private variables ----------
   late final FlutterTts _tts;
@@ -21,9 +33,8 @@ class TTSProvider extends ChangeNotifier {
   /// Cancelled when starting new playback to avoid multiple completion callbacks
   StreamSubscription<PlayerState>? _playerStateSubscription;
 
-  /// Position updates when playing saved audio – used to sync word highlight with playback
-  StreamSubscription<Duration>? _positionSubscription;
-  Duration? _savedAudioDuration;
+  /// Temp file path used for car playback (copy of history file); deleted when playback ends
+  String? _currentPlaybackTempPath;
 
   // TTS state
   TTSState _ttsState = TTSState.stopped;
@@ -118,7 +129,7 @@ class TTSProvider extends ChangeNotifier {
   TTSProvider() {
     _tts = FlutterTts();
     _databaseService = DatabaseService();
-    _audioPlayer = AudioPlayer();
+    _audioPlayer = AudioPlayer(audioLoadConfiguration: _carAudioLoadConfig);
 
     // Don't call async methods in constructor
     // _initTTS();
@@ -744,6 +755,33 @@ class TTSProvider extends ChangeNotifier {
   }
 
   // ---------- Play saved audio file with high quality ----------
+  /// Copies file to a temp path for playback to reduce car stutter (avoids sync/contention on app storage).
+  Future<String?> _copyToTempForPlayback(String sourcePath) async {
+    try {
+      await _deletePlaybackTemp();
+      final tempDir = await getTemporaryDirectory();
+      final ext = p.extension(sourcePath).isEmpty ? '.mp3' : p.extension(sourcePath);
+      final tempPath = p.join(tempDir.path, 'tts_play_${const Uuid().v4()}$ext');
+      final source = File(sourcePath);
+      if (!await source.exists()) return null;
+      await source.copy(tempPath);
+      _currentPlaybackTempPath = tempPath;
+      return tempPath;
+    } catch (e) {
+      debugPrint('TTS: copyToTemp failed: $e');
+      return null;
+    }
+  }
+
+  Future<void> _deletePlaybackTemp() async {
+    if (_currentPlaybackTempPath == null) return;
+    try {
+      final f = File(_currentPlaybackTempPath!);
+      if (await f.exists()) await f.delete();
+    } catch (_) {}
+    _currentPlaybackTempPath = null;
+  }
+
   Future<void> playSavedAudio(String filePath) async {
     try {
       _clearError();
@@ -762,12 +800,18 @@ class TTSProvider extends ChangeNotifier {
       await _playerStateSubscription?.cancel();
       _playerStateSubscription = null;
 
+      // Play from a temp copy to avoid stutter (storage far from app package / sync contention)
+      final playPath = await _copyToTempForPlayback(filePath) ?? filePath;
+      if (playPath != filePath) {
+        debugPrint('TTS: Playing from temp copy for smooth car playback');
+      }
+
       _ttsState = TTSState.playing;
       _progressActive = true;
       _startWordHighlighting();
       notifyListeners();
 
-      await _audioPlayer.setFilePath(filePath);
+      await _audioPlayer.setFilePath(playPath);
       await _audioPlayer.play();
 
       _playerStateSubscription = _audioPlayer.playerStateStream.listen((state) {
@@ -775,6 +819,7 @@ class TTSProvider extends ChangeNotifier {
           _ttsState = TTSState.stopped;
           _progressActive = false;
           _resetProgress();
+          _deletePlaybackTemp();
           notifyListeners();
         }
       });
@@ -784,6 +829,7 @@ class TTSProvider extends ChangeNotifier {
       _ttsState = TTSState.stopped;
       _progressActive = false;
       _resetProgress();
+      _deletePlaybackTemp();
       notifyListeners();
     }
   }
@@ -816,6 +862,7 @@ class TTSProvider extends ChangeNotifier {
       _ttsState = TTSState.stopped;
       _progressActive = false;
       _resetProgress();
+      await _deletePlaybackTemp();
       notifyListeners();
     } catch (e) {
       debugPrint('Error stopping saved audio: $e');
@@ -853,11 +900,18 @@ class TTSProvider extends ChangeNotifier {
 
   /// File-first speak: when offline always use saved file (no stuttering).
   /// When online, use file when supported, else real-time TTS.
+  /// On iOS/iPad, prefer real-time speak() first for reliability (synthesizeToFile has known issues).
   Future<void> speakSmart() async {
     final offline = await _isOffline();
     if (offline) {
       debugPrint('TTS: Offline – using file-based playback only (no streaming)');
       await _speakWithMP3Fallback();
+      return;
+    }
+    // On iOS/iPad, use real-time TTS first to avoid known synthesizeToFile issues (App Store review)
+    if (Platform.isIOS) {
+      debugPrint('TTS: iOS/iPad – using real-time speak() for reliable playback');
+      await speak();
       return;
     }
     final supportsFile = await isFileSynthesisSupported();
@@ -870,7 +924,8 @@ class TTSProvider extends ChangeNotifier {
     }
   }
 
-  /// Speak with automatic MP3 generation and playback
+  /// Speak with automatic MP3 generation and playback.
+  /// If file synthesis fails (e.g. on iPad/iOS), falls back to real-time speak() so audio always plays.
   Future<void> _speakWithMP3Fallback() async {
     try {
       _clearError();
@@ -889,17 +944,22 @@ class TTSProvider extends ChangeNotifier {
       }
 
       if (mp3Path != null) {
-        debugPrint('TTS: Playing MP3 file: $mp3Path');
-        await playSavedAudio(mp3Path);
+        try {
+          debugPrint('TTS: Playing MP3 file: $mp3Path');
+          await playSavedAudio(mp3Path);
+        } catch (playError) {
+          debugPrint('TTS: File playback failed, falling back to real-time TTS: $playError');
+          await speak();
+        }
       } else {
-        _setError('Failed to generate MP3 for offline playback');
-        _ttsState = TTSState.stopped;
-        notifyListeners();
+        // File synthesis failed (known on some iPad/iOS) – use real-time TTS so user still hears audio
+        debugPrint('TTS: File synthesis unavailable, using real-time speak()');
+        await speak();
       }
     } catch (e) {
-      _setError('MP3 fallback failed: ${e.toString()}');
-      _ttsState = TTSState.stopped;
-      notifyListeners();
+      debugPrint('TTS: _speakWithMP3Fallback error, falling back to speak(): $e');
+      _clearError();
+      await speak();
     }
   }
 
@@ -924,8 +984,8 @@ class TTSProvider extends ChangeNotifier {
       await _tts.setPitch(_pitch);
       await _tts.setVolume(_volume);
 
-      // Save to persistent app folder (TTS_audio) so file is always on device for offline playback
-      final baseDir = await getApplicationDocumentsDirectory();
+      // Save to Application Support (not Documents) to avoid iCloud/sync contention and reduce car playback stutter
+      final baseDir = await getApplicationSupportDirectory();
       final dir = Directory(p.join(baseDir.path, 'TTS_audio'));
       if (!await dir.exists()) await dir.create(recursive: true);
       final id = const Uuid().v4();
@@ -1120,7 +1180,9 @@ class TTSProvider extends ChangeNotifier {
       await _tts.setPitch(_pitch);
       await _tts.setVolume(_volume);
 
-      final dir = await getApplicationDocumentsDirectory();
+      final baseDir = await getApplicationSupportDirectory();
+      final dir = Directory(p.join(baseDir.path, 'TTS_audio'));
+      if (!await dir.exists()) await dir.create(recursive: true);
       final id = const Uuid().v4();
       final fileNameOnly =
           'tts_$id.wav'; // Use WAV format for better car audio compatibility

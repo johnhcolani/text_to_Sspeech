@@ -22,13 +22,13 @@ echo ""
 echo "Clean Flutter project..."
 flutter clean
 
-echo ""
-echo "Building Flutter web..."
-flutter build web --release
+# echo ""
+# echo "Building Flutter web..."
+# flutter build web --release
 
-echo ""
-echo "Deploying to Firebase Hosting..."
-firebase deploy --only hosting
+# echo ""
+# echo "Deploying to Firebase Hosting..."
+# firebase deploy --only hosting
 
 echo ""
 echo "Building iOS..."
