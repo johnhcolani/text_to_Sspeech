@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../model/tts_history_item.dart';
 import '../services/database_service.dart';
+import '../services/legacy_obfuscation_recovery.dart';
 
 class HistoryProvider extends ChangeNotifier {
   final DatabaseService _databaseService = DatabaseService();
@@ -30,23 +31,41 @@ class HistoryProvider extends ChangeNotifier {
   Future<void> load() async {
     try {
       final raw = await _databaseService.getHistoryItems();
-      _items
-        ..clear()
-        ..addAll(
-          raw.map(
-            (e) => TtsHistoryItem(
-              id: e['id'] as String,
-              text: e['text'] as String,
-              filePath: e['filePath'] as String?,
-              voiceId: e['voiceId'] as String,
-              rate: e['rate'] as double,
-              pitch: e['pitch'] as double,
-              createdAt: DateTime.fromMillisecondsSinceEpoch(
-                e['timestamp'] as int,
-              ),
-            ),
+      var recoveredLegacyValues = false;
+
+      final loadedItems = raw.map((e) {
+        final storedText = e['text'] as String;
+        final storedVoiceId = e['voiceId'] as String;
+        final recoveredText = LegacyObfuscationRecovery.recover(storedText);
+        final recoveredVoiceId = LegacyObfuscationRecovery.recover(storedVoiceId);
+
+        if (recoveredText != storedText || recoveredVoiceId != storedVoiceId) {
+          recoveredLegacyValues = true;
+        }
+
+        return TtsHistoryItem(
+          id: e['id'] as String,
+          text: recoveredText,
+          filePath: e['filePath'] as String?,
+          voiceId: recoveredVoiceId,
+          rate: e['rate'] as double,
+          pitch: e['pitch'] as double,
+          createdAt: DateTime.fromMillisecondsSinceEpoch(
+            e['timestamp'] as int,
           ),
         );
+      }).toList();
+
+      _items
+        ..clear()
+        ..addAll(loadedItems);
+
+      // Once recovered, immediately persist plaintext using the safe database
+      // implementation. Audio paths and all other history metadata are kept.
+      if (recoveredLegacyValues) {
+        await _save();
+      }
+
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading history from database: $e');
