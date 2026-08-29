@@ -7,6 +7,7 @@ import '../model/tts_history_item.dart';
 import '../providers/history_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/theme_provider.dart';
+import '../utils/audio_export_actions.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -20,6 +21,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String? _currentId;
   // Track which items are expanded to show full text
   final Set<String> _expandedItems = {};
+  // Track history entries currently being prepared/exported.
+  final Set<String> _exportingItems = {};
 
   @override
   void initState() {
@@ -127,6 +130,63 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  Future<void> _exportItem(
+    TtsHistoryItem item,
+    TTSProvider ttsProvider,
+    HistoryProvider historyProvider,
+  ) async {
+    if (_exportingItems.contains(item.id)) return;
+
+    // File regeneration and playback both use the same TTS engine, so stop
+    // current playback before preparing an export.
+    await _stopCurrent();
+
+    if (mounted) {
+      setState(() => _exportingItems.add(item.id));
+    }
+
+    try {
+      final destination = await exportHistoryAudio(
+        item: item,
+        ttsProvider: ttsProvider,
+        historyProvider: historyProvider,
+      );
+
+      if (!mounted || destination == null) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 8),
+              Expanded(child: Text('Audio exported successfully')),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not export audio: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _exportingItems.remove(item.id));
+      }
+    }
+  }
+
   bool _isCurrent(String id) => _currentId == id;
 
   Widget _buildControls(BuildContext context, TtsHistoryItem item, Color accent) {
@@ -207,7 +267,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           child: Container(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
-              'Tap to play • Use expand button to read full text',
+              'Tap to play • Export any saved speech as an audio file',
               style: TextStyle(
                 color: Colors.white.withOpacity(0.7),
                 fontSize: 12,
@@ -280,6 +340,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   ) {
     final accent = context.read<ThemeProvider>().accentColor;
     final isExpanded = _isExpanded(item.id);
+    final isExporting = _exportingItems.contains(item.id);
+    final hasAudioFile =
+        item.filePath != null && File(item.filePath!).existsSync();
 
     return Dismissible(
       key: Key(item.id),
@@ -395,28 +458,61 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                       ],
                     ),
-                    if (item.filePath != null) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.audio_file,
-                            size: 16,
-                            color: Colors.white.withOpacity(0.7),
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              'MP3 file available',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
-                                fontSize: 12,
-                              ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          hasAudioFile
+                              ? Icons.audio_file
+                              : Icons.auto_fix_high,
+                          size: 16,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            hasAudioFile
+                                ? 'Audio file ready'
+                                : 'Audio will be generated when exported',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 12,
                             ),
                           ),
-                        ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: isExporting
+                            ? null
+                            : () => _exportItem(
+                                  item,
+                                  ttsProvider,
+                                  historyProvider,
+                                ),
+                        icon: isExporting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.download_outlined, size: 20),
+                        label: Text(
+                          isExporting ? 'Preparing Audio...' : 'Export Audio',
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: accent,
+                          side: BorderSide(color: accent.withOpacity(0.7)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
                       ),
-                    ],
+                    ),
                   ],
                 ),
                 trailing: Row(

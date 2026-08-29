@@ -7,6 +7,7 @@ import 'dart:io';
 import 'dart:async';
 
 import '../services/database_service.dart';
+import '../utils/validators.dart';
 import 'package:uuid/uuid.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -15,12 +16,16 @@ enum TTSState { playing, stopped, paused, continued }
 /// Car-friendly audio load config: larger preload buffer to reduce stutter.
 const AudioLoadConfiguration _carAudioLoadConfig = AudioLoadConfiguration(
   darwinLoadControl: DarwinLoadControl(
-    automaticallyWaitsToMinimizeStalling: false,
-    preferredForwardBufferDuration: Duration(seconds: 30),
+    automaticallyWaitsToMinimizeStalling: true,
+    preferredForwardBufferDuration: Duration(seconds: 60),
   ),
   androidLoadControl: AndroidLoadControl(
-    bufferForPlaybackDuration: Duration(seconds: 5),
-    bufferForPlaybackAfterRebufferDuration: Duration(seconds: 8),
+    minBufferDuration: Duration(seconds: 60),
+    maxBufferDuration: Duration(seconds: 120),
+    bufferForPlaybackDuration: Duration(seconds: 10),
+    bufferForPlaybackAfterRebufferDuration: Duration(seconds: 15),
+    prioritizeTimeOverSizeThresholds: true,
+    backBufferDuration: Duration(seconds: 5),
   ),
 );
 
@@ -32,6 +37,7 @@ class TTSProvider extends ChangeNotifier {
 
   /// Cancelled when starting new playback to avoid multiple completion callbacks
   StreamSubscription<PlayerState>? _playerStateSubscription;
+  StreamSubscription<Duration>? _audioPositionSubscription;
 
   /// Temp file path used for car playback (copy of history file); deleted when playback ends
   String? _currentPlaybackTempPath;
@@ -61,6 +67,8 @@ class TTSProvider extends ChangeNotifier {
   int _currentWordIndex = 0;
   Timer? _wordHighlightTimer;
   bool _wordHighlightingActive = false;
+  bool _nativeProgressSeen = false;
+  bool _usingSavedAudioProgress = false;
 
   // Timing adjustment for better speech sync
   double _timingOffset = 0.8; // Optimized timing offset
@@ -95,6 +103,7 @@ class TTSProvider extends ChangeNotifier {
   double _rate = 0.5; // speaking rate
   double _pitch = 1.0;
   double _volume = 1.0;
+  int _textLimit = InputValidator.maxTextLength;
   String _selectedLanguage = 'en-US';
   String _selectedVoice = ''; // voice 'name' from getVoices
   List<Map<String, String>> _voices = [];
@@ -109,6 +118,7 @@ class TTSProvider extends ChangeNotifier {
   double get rate => _rate;
   double get pitch => _pitch;
   double get volume => _volume;
+  int get textLimit => _textLimit;
   String get selectedLanguage => _selectedLanguage;
   String get selectedVoice => _selectedVoice; // <-- this is the "voiceId"
   int get currentLineIndex {
@@ -161,11 +171,15 @@ class TTSProvider extends ChangeNotifier {
     }
   }
 
-  void _startWordHighlighting() {
+  void _startEstimatedWordHighlighting({bool resetToStart = true}) {
     if (_words.isEmpty) return;
+    _wordHighlightTimer?.cancel();
 
     _wordHighlightingActive = true;
-    _currentWordIndex = 0;
+    _usingSavedAudioProgress = false;
+    if (resetToStart) {
+      _currentWordIndex = 0;
+    }
     _totalWords = _words.length;
     _speechStartTime = DateTime.now();
     _currentSpeechProgress = 0.0;
@@ -196,6 +210,86 @@ class TTSProvider extends ChangeNotifier {
         notifyListeners();
       }
     });
+  }
+
+  void _startLiveWordHighlighting() {
+    if (_words.isEmpty) return;
+    _wordHighlightTimer?.cancel();
+    _wordHighlightingActive = true;
+    _usingSavedAudioProgress = false;
+    _nativeProgressSeen = false;
+    _currentWordIndex = 0;
+    _totalWords = _words.length;
+    _speechStartTime = DateTime.now();
+    _progressActive = true;
+    _updateWordProgress();
+
+    Timer(const Duration(milliseconds: 700), () {
+      if (_ttsState == TTSState.playing &&
+          _wordHighlightingActive &&
+          !_nativeProgressSeen) {
+        _startEstimatedWordHighlighting(resetToStart: false);
+      }
+    });
+  }
+
+  void _startSavedAudioWordHighlighting() {
+    if (_words.isEmpty) return;
+    _wordHighlightTimer?.cancel();
+    _wordHighlightingActive = true;
+    _usingSavedAudioProgress = true;
+    _currentWordIndex = 0;
+    _totalWords = _words.length;
+    _speechStartTime = null;
+    _currentSpeechProgress = 0.0;
+    _updateWordProgress();
+  }
+
+  void _updateWordProgressFromAudioPosition(Duration position) {
+    if (!_usingSavedAudioProgress || _words.isEmpty) return;
+
+    final duration = _audioPlayer.duration;
+    if (duration == null || duration.inMilliseconds <= 0) return;
+
+    _currentSpeechProgress = (position.inMilliseconds / duration.inMilliseconds)
+        .clamp(0.0, 1.0);
+    _currentWordIndex = (_currentSpeechProgress * (_words.length - 1))
+        .round()
+        .clamp(0, _words.length - 1);
+    _progressPercentage = _currentSpeechProgress;
+    _updateWordProgress();
+  }
+
+  void _updateWordProgressFromNativeCallback(int start, int end, String word) {
+    if (_words.isEmpty || _text.isEmpty) return;
+
+    _nativeProgressSeen = true;
+    _wordHighlightTimer?.cancel();
+    _wordHighlightingActive = true;
+    _usingSavedAudioProgress = false;
+
+    final safeStart = start.clamp(0, _text.length);
+    final safeEnd = end.clamp(safeStart, _text.length);
+    final callbackWord = word.trim();
+    var wordIndex = _wordStartPositions.indexWhere(
+      (wordStart) => wordStart >= safeStart && wordStart < safeEnd,
+    );
+
+    if (wordIndex == -1) {
+      wordIndex = _wordStartPositions.lastIndexWhere(
+        (wordStart) => wordStart <= safeStart,
+      );
+    }
+
+    _currentWordIndex = wordIndex.clamp(0, _words.length - 1);
+    _progressStart = safeStart;
+    _progressEnd = safeEnd;
+    _progressWord = callbackWord.isNotEmpty
+        ? callbackWord
+        : _words[_currentWordIndex];
+    _progressActive = true;
+    _progressPercentage = safeEnd / _text.length;
+    notifyListeners();
   }
 
   void _estimateSpeechDuration() {
@@ -266,12 +360,15 @@ class TTSProvider extends ChangeNotifier {
 
   void _stopWordHighlighting() {
     _wordHighlightTimer?.cancel();
+    _audioPositionSubscription?.cancel();
+    _audioPositionSubscription = null;
     _wordHighlightingActive = false;
+    _usingSavedAudioProgress = false;
+    _nativeProgressSeen = false;
     _currentWordIndex = 0;
     _speechStartTime = null;
     _currentSpeechProgress = 0.0;
     _actualSpeechDuration = 0.0;
-    _updateWordProgress();
   }
 
   void _updateWordProgress() {
@@ -339,6 +436,31 @@ class TTSProvider extends ChangeNotifier {
   Future<void> _initTTS() async {
     try {
       _clearError();
+
+      // iOS/iPadOS: configure the shared audio session BEFORE speaking.
+      // Without this, real-time TTS produces no audible output when the device
+      // is muted (iPads have no physical ring switch – it's toggled in Control
+      // Center and is easy to leave on), and it can lose the audio route to the
+      // just_audio player used for saved-file playback. The `playback` category
+      // ignores the mute switch and routes to the speaker/Bluetooth reliably.
+      // This is the root cause of the App Store "tapped Play, no audio" report.
+      if (Platform.isIOS || Platform.isMacOS) {
+        try {
+          await _tts.setSharedInstance(true);
+          await _tts.setIosAudioCategory(
+            IosTextToSpeechAudioCategory.playback,
+            [
+              IosTextToSpeechAudioCategoryOptions.allowBluetooth,
+              IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
+              IosTextToSpeechAudioCategoryOptions.mixWithOthers,
+            ],
+            IosTextToSpeechAudioMode.defaultMode,
+          );
+        } catch (e) {
+          debugPrint('Error configuring iOS audio session: $e');
+        }
+      }
+
       await _tts.setLanguage(_selectedLanguage);
       await _tts.setSpeechRate(_rate);
       await _tts.setPitch(_pitch);
@@ -354,9 +476,12 @@ class TTSProvider extends ChangeNotifier {
           _ttsState = TTSState.playing;
           _progressActive = true;
           _clearError();
-          _startWordHighlighting();
+          _startLiveWordHighlighting();
           notifyListeners();
         }
+      });
+      _tts.setProgressHandler((String text, int start, int end, String word) {
+        _updateWordProgressFromNativeCallback(start, end, word);
       });
       _tts.setCompletionHandler(() {
         _ttsState = TTSState.stopped;
@@ -377,7 +502,7 @@ class TTSProvider extends ChangeNotifier {
       });
       _tts.setContinueHandler(() {
         _ttsState = TTSState.playing; // Changed from continued to playing
-        _startWordHighlighting();
+        _startLiveWordHighlighting();
         notifyListeners();
       });
 
@@ -421,6 +546,16 @@ class TTSProvider extends ChangeNotifier {
       final timingOffsetStr = await _databaseService.getSetting('timingOffset');
       if (timingOffsetStr != null) {
         _timingOffset = double.tryParse(timingOffsetStr) ?? 0.8;
+      }
+
+      final textLimitStr = await _databaseService.getSetting('textLimit');
+      if (textLimitStr != null) {
+        _textLimit =
+            int.tryParse(textLimitStr)?.clamp(
+              InputValidator.minConfigurableTextLength,
+              InputValidator.maxConfigurableTextLength,
+            ) ??
+            InputValidator.maxTextLength;
       }
 
       notifyListeners();
@@ -503,7 +638,32 @@ class TTSProvider extends ChangeNotifier {
 
   // ---------- Settings setters ----------
   Future<void> setText(String value) async {
-    _text = value;
+    if (value.trim().isEmpty) {
+      _text = '';
+      _hasError = false;
+      _lastError = null;
+      _invalidateCachedFile();
+      _initializeWordTracking();
+      _resetProgress();
+      notifyListeners();
+      return;
+    }
+
+    // Validate text input
+    final validationError = InputValidator.validateText(
+      value,
+      maxLength: _textLimit,
+    );
+    if (validationError != null) {
+      _lastError = validationError;
+      _hasError = true;
+      notifyListeners();
+      return;
+    }
+
+    _text = InputValidator.sanitizeText(value);
+    _hasError = false;
+    _lastError = null;
     _invalidateCachedFile();
     _initializeWordTracking();
     notifyListeners();
@@ -529,6 +689,26 @@ class TTSProvider extends ChangeNotifier {
     _volume = value.clamp(0.0, 1.0);
     await _databaseService.setSetting('volume', _volume.toString());
     await _tts.setVolume(_volume);
+    notifyListeners();
+  }
+
+  Future<void> setTextLimit(int value) async {
+    _textLimit = value.clamp(
+      InputValidator.minConfigurableTextLength,
+      InputValidator.maxConfigurableTextLength,
+    );
+    await _databaseService.setSetting('textLimit', _textLimit.toString());
+
+    if (_text.length > _textLimit) {
+      _lastError =
+          'Text is longer than the current $_textLimit character limit.';
+      _hasError = true;
+      _invalidateCachedFile();
+    } else {
+      _hasError = false;
+      _lastError = null;
+    }
+
     notifyListeners();
   }
 
@@ -644,7 +824,7 @@ class TTSProvider extends ChangeNotifier {
       // Set state to playing immediately so UI shows pause button right away
       _ttsState = TTSState.playing;
       _progressActive = true;
-      _startWordHighlighting();
+      _startLiveWordHighlighting();
       notifyListeners();
 
       debugPrint('TTS: Calling flutter_tts.speak()');
@@ -676,7 +856,7 @@ class TTSProvider extends ChangeNotifier {
       // Set state to playing immediately so UI shows pause button right away
       _ttsState = TTSState.playing;
       _progressActive = true;
-      _startWordHighlighting();
+      _startLiveWordHighlighting();
       notifyListeners();
 
       await _tts.speak(toSay);
@@ -760,11 +940,19 @@ class TTSProvider extends ChangeNotifier {
     try {
       await _deletePlaybackTemp();
       final tempDir = await getTemporaryDirectory();
-      final ext = p.extension(sourcePath).isEmpty ? '.mp3' : p.extension(sourcePath);
-      final tempPath = p.join(tempDir.path, 'tts_play_${const Uuid().v4()}$ext');
+      final ext = p.extension(sourcePath).isEmpty
+          ? '.mp3'
+          : p.extension(sourcePath);
+      final tempPath = p.join(
+        tempDir.path,
+        'tts_play_${const Uuid().v4()}$ext',
+      );
       final source = File(sourcePath);
       if (!await source.exists()) return null;
-      await source.copy(tempPath);
+      final bytes = await source.readAsBytes();
+      final tempFile = File(tempPath);
+      await tempFile.writeAsBytes(bytes, flush: true);
+      if (await tempFile.length() != bytes.length) return null;
       _currentPlaybackTempPath = tempPath;
       return tempPath;
     } catch (e) {
@@ -799,6 +987,8 @@ class TTSProvider extends ChangeNotifier {
 
       await _playerStateSubscription?.cancel();
       _playerStateSubscription = null;
+      await _audioPositionSubscription?.cancel();
+      _audioPositionSubscription = null;
 
       // Play from a temp copy to avoid stutter (storage far from app package / sync contention)
       final playPath = await _copyToTempForPlayback(filePath) ?? filePath;
@@ -806,13 +996,27 @@ class TTSProvider extends ChangeNotifier {
         debugPrint('TTS: Playing from temp copy for smooth car playback');
       }
 
+      final readyPath = await _waitForStableAudioFile(playPath);
+      if (readyPath == null) {
+        throw Exception('Audio file is not ready for playback');
+      }
+
+      await _audioPlayer.stop();
+      await _audioPlayer.setAudioSource(
+        AudioSource.uri(Uri.file(readyPath)),
+        preload: false,
+      );
+      await _audioPlayer.load();
+      await _audioPlayer.seek(Duration.zero);
+
       _ttsState = TTSState.playing;
       _progressActive = true;
-      _startWordHighlighting();
+      _startSavedAudioWordHighlighting();
       notifyListeners();
 
-      await _audioPlayer.setFilePath(playPath);
-      await _audioPlayer.play();
+      _audioPositionSubscription = _audioPlayer.positionStream.listen(
+        _updateWordProgressFromAudioPosition,
+      );
 
       _playerStateSubscription = _audioPlayer.playerStateStream.listen((state) {
         if (state.processingState == ProcessingState.completed) {
@@ -823,6 +1027,8 @@ class TTSProvider extends ChangeNotifier {
           notifyListeners();
         }
       });
+
+      await _audioPlayer.play();
     } catch (e) {
       _setError('Failed to play saved audio: ${e.toString()}');
       debugPrint('Error playing saved audio: $e');
@@ -838,7 +1044,9 @@ class TTSProvider extends ChangeNotifier {
     try {
       await _audioPlayer.pause();
       _ttsState = TTSState.paused;
-      _stopWordHighlighting();
+      _wordHighlightTimer?.cancel();
+      await _audioPositionSubscription?.cancel();
+      _audioPositionSubscription = null;
       notifyListeners();
     } catch (e) {
       debugPrint('Error pausing saved audio: $e');
@@ -849,7 +1057,11 @@ class TTSProvider extends ChangeNotifier {
     try {
       await _audioPlayer.play();
       _ttsState = TTSState.continued;
-      _startWordHighlighting();
+      _startSavedAudioWordHighlighting();
+      await _audioPositionSubscription?.cancel();
+      _audioPositionSubscription = _audioPlayer.positionStream.listen(
+        _updateWordProgressFromAudioPosition,
+      );
       notifyListeners();
     } catch (e) {
       debugPrint('Error resuming saved audio: $e');
@@ -904,13 +1116,17 @@ class TTSProvider extends ChangeNotifier {
   Future<void> speakSmart() async {
     final offline = await _isOffline();
     if (offline) {
-      debugPrint('TTS: Offline – using file-based playback only (no streaming)');
+      debugPrint(
+        'TTS: Offline – using file-based playback only (no streaming)',
+      );
       await _speakWithMP3Fallback();
       return;
     }
     // On iOS/iPad, use real-time TTS first to avoid known synthesizeToFile issues (App Store review)
     if (Platform.isIOS) {
-      debugPrint('TTS: iOS/iPad – using real-time speak() for reliable playback');
+      debugPrint(
+        'TTS: iOS/iPad – using real-time speak() for reliable playback',
+      );
       await speak();
       return;
     }
@@ -948,7 +1164,9 @@ class TTSProvider extends ChangeNotifier {
           debugPrint('TTS: Playing MP3 file: $mp3Path');
           await playSavedAudio(mp3Path);
         } catch (playError) {
-          debugPrint('TTS: File playback failed, falling back to real-time TTS: $playError');
+          debugPrint(
+            'TTS: File playback failed, falling back to real-time TTS: $playError',
+          );
           await speak();
         }
       } else {
@@ -957,7 +1175,9 @@ class TTSProvider extends ChangeNotifier {
         await speak();
       }
     } catch (e) {
-      debugPrint('TTS: _speakWithMP3Fallback error, falling back to speak(): $e');
+      debugPrint(
+        'TTS: _speakWithMP3Fallback error, falling back to speak(): $e',
+      );
       _clearError();
       await speak();
     }
@@ -998,8 +1218,12 @@ class TTSProvider extends ChangeNotifier {
       // Strategy 1: Direct MP3 synthesis (highest quality)
       try {
         debugPrint('TTS: Attempting direct MP3 synthesis...');
-        await _tts.synthesizeToFile(content, fullPath);
-        if (await File(fullPath).exists()) {
+        // flutter_tts treats the second argument as a file name unless
+        // isFullPath is explicitly true. Without this flag, Android writes to
+        // MediaStore and iOS writes under Documents, so the app-support path
+        // checked below never exists.
+        await _tts.synthesizeToFile(content, fullPath, true);
+        if (await _waitForStableAudioFile(fullPath, minBytes: 4096) != null) {
           resultPath = await _verifyAndOptimizeMP3File(fullPath);
           if (resultPath != null) {
             debugPrint('TTS: Direct MP3 synthesis successful');
@@ -1017,9 +1241,9 @@ class TTSProvider extends ChangeNotifier {
           final wavFileName = 'tts_hq_$id.wav';
           final wavPath = p.join(dir.path, wavFileName);
 
-          await _tts.synthesizeToFile(content, wavPath);
+          await _tts.synthesizeToFile(content, wavPath, true);
 
-          if (await File(wavPath).exists()) {
+          if (await _waitForStableAudioFile(wavPath, minBytes: 2048) != null) {
             // Convert WAV to MP3 using platform-specific methods
             final mp3Path = await _convertWavToMp3(wavPath, fullPath);
             if (mp3Path != null) {
@@ -1041,9 +1265,9 @@ class TTSProvider extends ChangeNotifier {
           final wavFileName = 'tts_hq_$id.wav';
           final wavPath = p.join(dir.path, wavFileName);
 
-          await _tts.synthesizeToFile(content, wavPath);
+          await _tts.synthesizeToFile(content, wavPath, true);
 
-          if (await File(wavPath).exists()) {
+          if (await _waitForStableAudioFile(wavPath, minBytes: 2048) != null) {
             resultPath = await _verifyAndOptimizeWavFile(wavPath);
           }
         } catch (e) {
@@ -1063,6 +1287,34 @@ class TTSProvider extends ChangeNotifier {
       debugPrint('synthesizeToFileHighQuality failed: $e');
       return null;
     }
+  }
+
+  Future<String?> _waitForStableAudioFile(
+    String filePath, {
+    int minBytes = 1024,
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
+    final file = File(filePath);
+    final deadline = DateTime.now().add(timeout);
+    var lastSize = -1;
+    var stableChecks = 0;
+
+    while (DateTime.now().isBefore(deadline)) {
+      if (await file.exists()) {
+        final size = await file.length();
+        if (size >= minBytes && size == lastSize) {
+          stableChecks++;
+          if (stableChecks >= 2) return filePath;
+        } else {
+          stableChecks = 0;
+          lastSize = size;
+        }
+      }
+      await Future.delayed(const Duration(milliseconds: 150));
+    }
+
+    debugPrint('TTS: Audio file did not become stable: $filePath');
+    return null;
   }
 
   /// Convert WAV to MP3 using platform-specific methods
@@ -1089,7 +1341,9 @@ class TTSProvider extends ChangeNotifier {
         if (await wavFile.exists()) {
           await wavFile.copy(mp3Path);
           if (await mp3File.exists()) {
-            debugPrint('TTS: WAV copied as MP3 on ${Platform.isMacOS ? "macOS" : "iOS"}');
+            debugPrint(
+              'TTS: WAV copied as MP3 on ${Platform.isMacOS ? "macOS" : "iOS"}',
+            );
             return mp3Path;
           }
         }
@@ -1190,8 +1444,8 @@ class TTSProvider extends ChangeNotifier {
 
       // Attempt #1: full path (works on some engines/platforms)
       try {
-        await _tts.synthesizeToFile(content, fullPath);
-        if (await File(fullPath).exists()) {
+        await _tts.synthesizeToFile(content, fullPath, true);
+        if (await _waitForStableAudioFile(fullPath) != null) {
           // Verify file quality
           final file = File(fullPath);
           final size = await file.length();
@@ -1236,6 +1490,7 @@ class TTSProvider extends ChangeNotifier {
   @override
   void dispose() {
     _wordHighlightTimer?.cancel();
+    _audioPositionSubscription?.cancel();
     _tts.stop();
     // _audioPlayer.dispose(); // This line was removed
     super.dispose();

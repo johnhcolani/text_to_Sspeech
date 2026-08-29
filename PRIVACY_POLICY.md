@@ -1,8 +1,8 @@
 # Privacy Policy for Text to Speech (T 2 S)
 
-**Last updated:** [DATE]  
+**Last updated:** August 28, 2026  
 **App name:** Text to Speech (T 2 S)  
-**Developer:** [Your name or company name]  
+**Developer:** John Colani  
 **Package / App ID:** com.johnacolani.text_to_speech
 
 ---
@@ -93,8 +93,10 @@ We may update this Privacy Policy from time to time. We will post the updated po
 
 If you have questions about this Privacy Policy or the app’s data practices, please contact us at:
 
-- **Email:** [Your contact email]
-- **Other:** [Website or other contact method, if any]
+- **Developer:** John Colani
+- **Email:** info@4ideasapp.com
+- **Website:** https://www.4ideasapp.com/
+- **Portfolio:** https://www.4ideasapp.com/portfolio
 
 ---
 
