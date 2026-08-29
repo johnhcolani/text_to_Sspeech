@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'dart:io';
 import '../widgets/voice_settings_panel.dart';
 import '../providers/tts_provider.dart';
+import '../utils/validators.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -85,6 +86,97 @@ class SettingsScreen extends StatelessWidget {
                 const SizedBox(height: 16), // Reduced spacing
                 // Voice Settings Panel
                 const VoiceSettingsPanel(),
+
+                const SizedBox(height: 16), // Reduced spacing
+                // Text Limit Settings Section
+                Consumer<TTSProvider>(
+                  builder: (context, tts, child) {
+                    return Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.format_list_numbered,
+                                color: const Color(0xFF64B5F6),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Character Limit',
+                                style: TextStyle(
+                                  color: const Color(0xFF64B5F6),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                '${tts.textLimit}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Controls how many characters users can type or paste before speech generation.',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Slider(
+                            value: tts.textLimit.toDouble(),
+                            min: InputValidator.minConfigurableTextLength
+                                .toDouble(),
+                            max: InputValidator.maxConfigurableTextLength
+                                .toDouble(),
+                            divisions: 99,
+                            label: '${tts.textLimit} characters',
+                            onChanged: (value) =>
+                                tts.setTextLimit(value.round()),
+                            activeColor: const Color(0xFF64B5F6),
+                            inactiveColor: Colors.white.withOpacity(0.2),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${InputValidator.minConfigurableTextLength}',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 11,
+                                ),
+                              ),
+                              Text(
+                                '${InputValidator.maxConfigurableTextLength}',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
 
                 const SizedBox(height: 16), // Reduced spacing
                 // Synchronization Settings Section

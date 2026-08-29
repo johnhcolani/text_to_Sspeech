@@ -1,10 +1,24 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'encryption_service.dart';
 
+/// Service for managing application database storage
+///
+/// Provides persistent storage for settings, history, and favorites.
+/// Automatically obfuscates selected data before storage.
 class DatabaseService {
   static Database? _database;
   static const String _databaseName = 'tts_app.db';
   static const int _databaseVersion = 1;
+
+  // Reversible obfuscation service instance
+  static final _encryptionService = EncryptionService();
+
+  // Settings that should be obfuscated before storage
+  static const Set<String> _encryptedSettings = {
+    'selectedLanguage',
+    'selectedVoice',
+  };
 
   // Table names
   static const String _settingsTable = 'settings';
@@ -107,6 +121,7 @@ class DatabaseService {
       {'key': 'pitch', 'value': '1.0'},
       {'key': 'volume', 'value': '1.0'},
       {'key': 'timingOffset', 'value': '0.8'},
+      {'key': 'textLimit', 'value': '5000'},
     ];
 
     for (final setting in defaultSettings) {
@@ -119,6 +134,14 @@ class DatabaseService {
   }
 
   // Settings methods
+  /// Get a setting value by key
+  ///
+  /// Automatically decodes obfuscated settings.
+  ///
+  /// Parameters:
+  /// - [key]: The setting key
+  ///
+  /// Returns: The decoded setting value, or null if not found
   Future<String?> getSetting(String key) async {
     final db = await database;
     final result = await db.query(
@@ -128,16 +151,37 @@ class DatabaseService {
     );
 
     if (result.isNotEmpty) {
-      return result.first[_settingsValue] as String?;
+      var value = result.first[_settingsValue] as String?;
+
+      // Decode if this is an obfuscated setting
+      if (value != null && _encryptedSettings.contains(key)) {
+        value = _encryptionService.decrypt(value);
+      }
+
+      return value;
     }
     return null;
   }
 
+  /// Set a setting value by key
+  ///
+  /// Automatically obfuscates selected settings before storage.
+  ///
+  /// Parameters:
+  /// - [key]: The setting key
+  /// - [value]: The value to store (will be obfuscated if selected)
   Future<void> setSetting(String key, String value) async {
     final db = await database;
+
+    // Obfuscate selected settings before storage
+    var storedValue = value;
+    if (_encryptedSettings.contains(key)) {
+      storedValue = _encryptionService.encrypt(value);
+    }
+
     await db.insert(_settingsTable, {
       _settingsKey: key,
-      _settingsValue: value,
+      _settingsValue: storedValue,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -151,12 +195,27 @@ class DatabaseService {
   }
 
   // History methods
+  /// Insert a history item into the database
+  ///
+  /// Automatically obfuscates selected fields (text, voiceId).
+  ///
+  /// Parameters:
+  /// - [item]: Map containing history item data
   Future<void> insertHistoryItem(Map<String, dynamic> item) async {
     final db = await database;
+
+    // Obfuscate selected fields
+    final encryptedText = _encryptionService.encrypt(
+      item['text'] as String? ?? '',
+    );
+    final encryptedVoiceId = _encryptionService.encrypt(
+      item['voiceId'] as String? ?? '',
+    );
+
     await db.insert(_historyTable, {
       _historyId: item['id'],
-      _historyText: item['text'],
-      _historyVoiceId: item['voiceId'],
+      _historyText: encryptedText,
+      _historyVoiceId: encryptedVoiceId,
       _historyRate: item['rate'],
       _historyPitch: item['pitch'],
       _historyFilePath: item['filePath'],
@@ -164,6 +223,11 @@ class DatabaseService {
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  /// Get all history items from the database
+  ///
+  /// Automatically decodes obfuscated fields.
+  ///
+  /// Returns: List of decoded history item maps
   Future<List<Map<String, dynamic>>> getHistoryItems() async {
     final db = await database;
     final result = await db.query(
@@ -175,8 +239,12 @@ class DatabaseService {
         .map(
           (row) => {
             'id': row[_historyId],
-            'text': row[_historyText],
-            'voiceId': row[_historyVoiceId],
+            'text': _encryptionService.decrypt(
+              row[_historyText] as String? ?? '',
+            ),
+            'voiceId': _encryptionService.decrypt(
+              row[_historyVoiceId] as String? ?? '',
+            ),
             'rate': row[_historyRate],
             'pitch': row[_historyPitch],
             'filePath': row[_historyFilePath],

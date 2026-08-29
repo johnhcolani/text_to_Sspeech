@@ -45,16 +45,20 @@ class _TextInputPanelState extends State<TextInputPanel> {
 
   void _onTextChanged() {
     context.read<TTSProvider>().setText(_textController.text);
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _processFile() async {
     setState(() => _isProcessing = true);
 
     try {
-      print('Starting file processing...');
+      debugPrint('Starting file processing...');
       String? extractedText = await _fileService.pickAndProcessTextFile();
+      if (!mounted) return;
 
-      print(
+      debugPrint(
         'File processing result: ${extractedText?.substring(0, extractedText.length > 100 ? 100 : extractedText.length)}...',
       );
 
@@ -83,7 +87,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
           );
         } else {
           // This is actual extracted text
-          print(
+          debugPrint(
             'Setting extracted text to TextField: ${extractedText.length} characters',
           );
           _textController.text = extractedText;
@@ -111,7 +115,8 @@ class _TextInputPanelState extends State<TextInputPanel> {
         );
       }
     } catch (e) {
-      print('Error in _processFile: $e');
+      debugPrint('Error in _processFile: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error processing file: $e'),
@@ -119,7 +124,9 @@ class _TextInputPanelState extends State<TextInputPanel> {
         ),
       );
     } finally {
-      setState(() => _isProcessing = false);
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
     }
   }
 
@@ -127,7 +134,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
     setState(() => _isProcessing = true);
 
     try {
-      print(
+      debugPrint(
         'Starting image processing... useCamera: $useCamera, OCR enabled: $_ocrEnabled',
       );
 
@@ -148,6 +155,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
       String? extractedText = await _fileService.pickAndProcessImage(
         useCamera: useCamera,
       );
+      if (!mounted) return;
 
       if (extractedText != null) {
         if (extractedText.startsWith('❌')) {
@@ -174,7 +182,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
           );
         } else {
           // This is actual extracted text
-          print(
+          debugPrint(
             'Setting extracted text to TextField: ${extractedText.length} characters',
           );
           _textController.text = extractedText;
@@ -202,7 +210,8 @@ class _TextInputPanelState extends State<TextInputPanel> {
         );
       }
     } catch (e) {
-      print('Error in _processImage: $e');
+      debugPrint('Error in _processImage: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -212,7 +221,9 @@ class _TextInputPanelState extends State<TextInputPanel> {
         ),
       );
     } finally {
-      setState(() => _isProcessing = false);
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
     }
   }
 
@@ -428,6 +439,7 @@ class _TextInputPanelState extends State<TextInputPanel> {
               // Text Input Field
               TextField(
                 controller: _textController,
+                maxLength: ttsProvider.textLimit,
                 maxLines: null, // Allow unlimited lines to prevent overflow
                 minLines: 4, // Minimum 4 lines
                 textInputAction: TextInputAction.done,
@@ -448,6 +460,16 @@ class _TextInputPanelState extends State<TextInputPanel> {
                 },
                 decoration: InputDecoration(
                   hintText: 'Enter text or upload a file to extract text...',
+                  counterText:
+                      '${(ttsProvider.textLimit - _textController.text.length).clamp(0, ttsProvider.textLimit)} characters left',
+                  counterStyle: TextStyle(
+                    color:
+                        _textController.text.length >
+                            ttsProvider.textLimit * 0.9
+                        ? Colors.orangeAccent
+                        : Colors.white.withValues(alpha: 0.65),
+                    fontSize: 12,
+                  ),
                   hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.05),
@@ -514,48 +536,25 @@ class _TextInputPanelState extends State<TextInputPanel> {
                   runSpacing: 8,
                   alignment: WrapAlignment.center,
                   children: [
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      _textController.text =
-                          "Debug: Test text setting works! ${DateTime.now()}";
-                      context.read<TTSProvider>().setText(_textController.text);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Debug: Test text set'),
-                          backgroundColor: Colors.purple,
+                    OutlinedButton.icon(
+                      onPressed: _textController.text.isNotEmpty
+                          ? () {
+                              _textController.clear();
+                              context.read<TTSProvider>().setText('');
+                            }
+                          : null,
+                      icon: const Icon(Icons.clear, size: 18),
+                      label: const Text('Clear Text'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red[300],
+                        side: BorderSide(color: Colors.red[300]!),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
                         ),
-                      );
-                    },
-                    icon: const Icon(Icons.bug_report, size: 18),
-                    label: const Text('Debug Test'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.purple[300],
-                      side: BorderSide(color: Colors.purple[300]!),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
                       ),
                     ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _textController.text.isNotEmpty
-                        ? () {
-                            _textController.clear();
-                            context.read<TTSProvider>().setText('');
-                          }
-                        : null,
-                    icon: const Icon(Icons.clear, size: 18),
-                    label: const Text('Clear Text'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red[300],
-                      side: BorderSide(color: Colors.red[300]!),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
                 ),
               ),
             ],

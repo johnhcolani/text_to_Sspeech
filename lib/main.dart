@@ -10,6 +10,16 @@ import 'screens/settings_screen.dart';
 import 'providers/tts_provider.dart';
 import 'services/file_processing_service.dart';
 
+/// Entry point of the Text to Speech application
+///
+/// Initializes the app with:
+/// - Platform-specific permissions (Android)
+/// - TTS provider with voice engine
+/// - Theme provider for UI customization
+/// - History provider for saved sessions
+///
+/// The app uses Provider pattern for state management across multiple providers,
+/// ensuring efficient state sharing and widget rebuilds.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -37,6 +47,10 @@ void main() async {
   );
 }
 
+/// Root widget of the application
+///
+/// Configures Material Design theme, navigation routes, and accessibility settings.
+/// Responds to theme changes and applies text scaling constraints.
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
