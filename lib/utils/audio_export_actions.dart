@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import '../model/tts_history_item.dart';
 import '../providers/history_provider.dart';
 import '../providers/tts_provider.dart';
+import '../services/ios_tts_file_service.dart';
 import '../services/macos_tts_file_service.dart';
 import '../services/mp3_export_service.dart';
 
@@ -66,6 +67,26 @@ Future<String?> _regenerateHistoryAudio({
   required TTSProvider ttsProvider,
   required HistoryProvider historyProvider,
 }) async {
+  // iOS flutter_tts can choose its own Documents output location. Generate the
+  // WAV in our own app container so export always receives the exact file path.
+  if (Platform.isIOS) {
+    final generatedPath = await IosTtsFileService.synthesizeToWav(
+      text: item.text,
+      voiceName: item.voiceId,
+      language: _languageForHistoryItem(item, ttsProvider),
+      rate: item.rate,
+      pitch: item.pitch,
+      volume: ttsProvider.volume,
+    );
+
+    if (generatedPath != null && await File(generatedPath).exists()) {
+      await historyProvider.updateFilePath(item.id, generatedPath);
+      return generatedPath;
+    }
+
+    return null;
+  }
+
   // flutter_tts has a macOS path-handling limitation in synthesizeToFile.
   // Use our native AVSpeechSynthesizer bridge there so the generated file is
   // written to a known path and the requested voice settings are applied.
