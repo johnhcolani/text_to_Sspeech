@@ -41,16 +41,24 @@ Future<String?> exportHistoryAudio({
   }
 
   final mp3File = await Mp3ExportService.prepareRealMp3(sourcePath);
-  final bytes = await mp3File.readAsBytes();
-  final fileName = _buildExportFileName(item.createdAt, 'mp3');
+  final isTemporaryMp3 = mp3File.path != sourcePath;
 
-  return FilePicker.platform.saveFile(
-    dialogTitle: 'Export Audio',
-    fileName: fileName,
-    type: FileType.custom,
-    allowedExtensions: const ['mp3'],
-    bytes: bytes,
-  );
+  try {
+    final bytes = await mp3File.readAsBytes();
+    final fileName = _buildExportFileName(item.createdAt, 'mp3');
+
+    return await FilePicker.platform.saveFile(
+      dialogTitle: 'Export Audio',
+      fileName: fileName,
+      type: FileType.custom,
+      allowedExtensions: const ['mp3'],
+      bytes: bytes,
+    );
+  } finally {
+    if (isTemporaryMp3 && await mp3File.exists()) {
+      await mp3File.delete();
+    }
+  }
 }
 
 Future<String?> _regenerateHistoryAudio({
