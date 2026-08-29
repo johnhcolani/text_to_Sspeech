@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../model/tts_history_item.dart';
 import '../providers/history_provider.dart';
 import '../providers/tts_provider.dart';
+import '../services/macos_tts_file_service.dart';
 
 /// Exports the audio associated with a history item using the platform-native
 /// Save As flow.
@@ -54,6 +55,27 @@ Future<String?> _regenerateHistoryAudio({
   required TTSProvider ttsProvider,
   required HistoryProvider historyProvider,
 }) async {
+  // flutter_tts has a macOS path-handling limitation in synthesizeToFile.
+  // Use our native AVSpeechSynthesizer bridge there so the generated file is
+  // written to a known path and the requested voice settings are applied.
+  if (Platform.isMacOS) {
+    final generatedPath = await MacOsTtsFileService.synthesizeToWav(
+      text: item.text,
+      voiceName: item.voiceId,
+      language: _languageForHistoryItem(item, ttsProvider),
+      rate: item.rate,
+      pitch: item.pitch,
+      volume: ttsProvider.volume,
+    );
+
+    if (generatedPath != null && await File(generatedPath).exists()) {
+      await historyProvider.updateFilePath(item.id, generatedPath);
+      return generatedPath;
+    }
+
+    return null;
+  }
+
   final originalText = ttsProvider.text;
   final originalVoice = ttsProvider.selectedVoice;
   final originalRate = ttsProvider.rate;
@@ -82,9 +104,30 @@ Future<String?> _regenerateHistoryAudio({
   }
 }
 
+String _languageForHistoryItem(
+  TtsHistoryItem item,
+  TTSProvider ttsProvider,
+) {
+  if (item.voiceId.isNotEmpty) {
+    for (final voice in ttsProvider.voices) {
+      if (voice['name'] == item.voiceId) {
+        final locale = voice['locale'];
+        if (locale != null && locale.isNotEmpty) return locale;
+      }
+    }
+  }
+
+  // Older history rows may not contain a voice name. In that case use the
+  // app's currently selected language and let macOS choose its default voice.
+  return ttsProvider.selectedLanguage;
+}
+
 String _safeAudioExtension(String sourcePath) {
   final extension = p.extension(sourcePath).replaceFirst('.', '').toLowerCase();
-  if (extension == 'mp3' || extension == 'wav' || extension == 'm4a') {
+  if (extension == 'mp3' ||
+      extension == 'wav' ||
+      extension == 'm4a' ||
+      extension == 'caf') {
     return extension;
   }
   return 'wav';
