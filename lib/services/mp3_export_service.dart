@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_lame/flutter_lame.dart';
 import 'package:path/path.dart' as p;
 import 'package:wav/wav.dart';
@@ -37,7 +36,7 @@ class Mp3ExportService {
       'tts_export_${DateTime.now().microsecondsSinceEpoch}.mp3',
     );
 
-    final wav = await compute(Wav.readFile, sourcePath);
+    final wav = await Wav.readFile(sourcePath);
     if (wav.channels.isEmpty || wav.channels.length > 2) {
       throw StateError('Unsupported WAV channel layout.');
     }
@@ -48,6 +47,7 @@ class Mp3ExportService {
     );
     final output = File(outputPath);
     final sink = output.openWrite();
+    var sinkClosed = false;
 
     try {
       final Float64List left = wav.channels[0];
@@ -68,8 +68,11 @@ class Mp3ExportService {
       if (tail.isNotEmpty) sink.add(tail);
       await sink.flush();
       await sink.close();
+      sinkClosed = true;
     } catch (_) {
-      await sink.close();
+      if (!sinkClosed) {
+        await sink.close();
+      }
       if (await output.exists()) {
         await output.delete();
       }
@@ -78,11 +81,14 @@ class Mp3ExportService {
       encoder.close();
     }
 
-    final encodedHeader = await _readHeader(output, 10);
-    if (!await output.exists() ||
-        await output.length() < 256 ||
-        !_looksLikeMp3(encodedHeader)) {
+    if (!await output.exists() || await output.length() < 256) {
       if (await output.exists()) await output.delete();
+      throw StateError('MP3 encoding did not produce a valid file.');
+    }
+
+    final encodedHeader = await _readHeader(output, 10);
+    if (!_looksLikeMp3(encodedHeader)) {
+      await output.delete();
       throw StateError('MP3 encoding did not produce a valid file.');
     }
 
