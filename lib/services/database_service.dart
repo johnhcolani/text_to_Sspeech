@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -5,6 +7,12 @@ class DatabaseService {
   static Database? _database;
   static const String _databaseName = 'tts_app.db';
   static const int _databaseVersion = 1;
+
+  // Compatibility recovery for data written by the accidental obfuscation
+  // build. This is intentionally kept local to the database service so the
+  // app returns to plain-text storage after recovery.
+  static const String _legacyObfuscationPrefix = 'obf:v1:';
+  static const String _legacyObfuscationKey = 'tts_app_secure_key_2024';
 
   // Table names
   static const String _settingsTable = 'settings';
@@ -118,6 +126,32 @@ class DatabaseService {
     }
   }
 
+  /// Decodes only values written by the accidental `obf:v1:` build.
+  /// Plain legacy values are returned unchanged.
+  String _recoverLegacyObfuscatedValue(String value) {
+    if (value.isEmpty || !value.startsWith(_legacyObfuscationPrefix)) {
+      return value;
+    }
+
+    try {
+      final payload = value.substring(_legacyObfuscationPrefix.length);
+      final encryptedBytes = base64.decode(payload);
+      final keyBytes = utf8.encode(_legacyObfuscationKey);
+      final decodedBytes = List<int>.generate(
+        encryptedBytes.length,
+        (index) => encryptedBytes[index] ^ keyBytes[index % keyBytes.length],
+        growable: false,
+      );
+      return utf8.decode(decodedBytes);
+    } catch (_) {
+      // Never destroy a value we cannot confidently recover.
+      return value;
+    }
+  }
+
+  bool _needsLegacyRecovery(String value) =>
+      value.startsWith(_legacyObfuscationPrefix);
+
   // Settings methods
   Future<String?> getSetting(String key) async {
     final db = await database;
@@ -128,7 +162,19 @@ class DatabaseService {
     );
 
     if (result.isNotEmpty) {
-      return result.first[_settingsValue] as String?;
+      final storedValue = result.first[_settingsValue] as String?;
+      if (storedValue == null) return null;
+
+      final recoveredValue = _recoverLegacyObfuscatedValue(storedValue);
+      if (_needsLegacyRecovery(storedValue) && recoveredValue != storedValue) {
+        await db.update(
+          _settingsTable,
+          {_settingsValue: recoveredValue},
+          where: '$_settingsKey = ?',
+          whereArgs: [key],
+        );
+      }
+      return recoveredValue;
     }
     return null;
   }
@@ -171,19 +217,45 @@ class DatabaseService {
       orderBy: '$_historyTimestamp DESC',
     );
 
-    return result
-        .map(
-          (row) => {
-            'id': row[_historyId],
-            'text': row[_historyText],
-            'voiceId': row[_historyVoiceId],
-            'rate': row[_historyRate],
-            'pitch': row[_historyPitch],
-            'filePath': row[_historyFilePath],
-            'timestamp': row[_historyTimestamp],
-          },
-        )
-        .toList();
+    final recoveredItems = <Map<String, dynamic>>[];
+
+    for (final row in result) {
+      final id = row[_historyId] as String;
+      final storedText = row[_historyText] as String? ?? '';
+      final storedVoiceId = row[_historyVoiceId] as String? ?? '';
+      final recoveredText = _recoverLegacyObfuscatedValue(storedText);
+      final recoveredVoiceId = _recoverLegacyObfuscatedValue(storedVoiceId);
+
+      final textRecovered =
+          _needsLegacyRecovery(storedText) && recoveredText != storedText;
+      final voiceRecovered =
+          _needsLegacyRecovery(storedVoiceId) && recoveredVoiceId != storedVoiceId;
+
+      if (textRecovered || voiceRecovered) {
+        final update = <String, Object?>{};
+        if (textRecovered) update[_historyText] = recoveredText;
+        if (voiceRecovered) update[_historyVoiceId] = recoveredVoiceId;
+
+        await db.update(
+          _historyTable,
+          update,
+          where: '$_historyId = ?',
+          whereArgs: [id],
+        );
+      }
+
+      recoveredItems.add({
+        'id': id,
+        'text': recoveredText,
+        'voiceId': recoveredVoiceId,
+        'rate': row[_historyRate],
+        'pitch': row[_historyPitch],
+        'filePath': row[_historyFilePath],
+        'timestamp': row[_historyTimestamp],
+      });
+    }
+
+    return recoveredItems;
   }
 
   Future<void> deleteHistoryItem(String id) async {
