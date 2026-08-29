@@ -1,12 +1,12 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:path/path.dart' as p;
 
 import '../model/tts_history_item.dart';
 import '../providers/history_provider.dart';
 import '../providers/tts_provider.dart';
 import '../services/macos_tts_file_service.dart';
+import '../services/mp3_export_service.dart';
 
 /// Exports the audio associated with a history item using the platform-native
 /// Save As flow.
@@ -14,6 +14,10 @@ import '../services/macos_tts_file_service.dart';
 /// If an older history entry does not have a usable audio file yet, the audio
 /// is regenerated from the saved text/voice/rate/pitch settings first and the
 /// new local file path is persisted back to history.
+///
+/// User-facing exports are always a real MP3. Older builds sometimes stored
+/// WAV bytes behind an `.mp3` extension; Mp3ExportService detects the actual
+/// file signature and encodes the WAV with LAME instead of renaming it.
 ///
 /// Returns the destination path reported by the platform, or `null` if the
 /// user cancels the save dialog.
@@ -36,16 +40,15 @@ Future<String?> exportHistoryAudio({
     throw StateError('Audio file could not be generated on this device.');
   }
 
-  final sourceFile = File(sourcePath);
-  final bytes = await sourceFile.readAsBytes();
-  final extension = _safeAudioExtension(sourcePath);
-  final fileName = _buildExportFileName(item.createdAt, extension);
+  final mp3File = await Mp3ExportService.prepareRealMp3(sourcePath);
+  final bytes = await mp3File.readAsBytes();
+  final fileName = _buildExportFileName(item.createdAt, 'mp3');
 
   return FilePicker.platform.saveFile(
     dialogTitle: 'Export Audio',
     fileName: fileName,
     type: FileType.custom,
-    allowedExtensions: [extension],
+    allowedExtensions: const ['mp3'],
     bytes: bytes,
   );
 }
@@ -118,19 +121,9 @@ String _languageForHistoryItem(
   }
 
   // Older history rows may not contain a voice name. In that case use the
-  // app's currently selected language and let macOS choose its default voice.
+  // app's currently selected language and let the platform choose its default
+  // voice when regenerating.
   return ttsProvider.selectedLanguage;
-}
-
-String _safeAudioExtension(String sourcePath) {
-  final extension = p.extension(sourcePath).replaceFirst('.', '').toLowerCase();
-  if (extension == 'mp3' ||
-      extension == 'wav' ||
-      extension == 'm4a' ||
-      extension == 'caf') {
-    return extension;
-  }
-  return 'wav';
 }
 
 String _buildExportFileName(DateTime createdAt, String extension) {
