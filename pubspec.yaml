@@ -25,7 +25,8 @@ environment:
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
 # consider running `flutter pub upgrade --major-versions`. Alternatively,
-# dependencies can be manually updated by changing the version numbers below to the latest version available on pub.dev. To see which dependencies have newer
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
   flutter:
@@ -59,13 +60,13 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/to/pubspec
+# following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
 flutter:
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
-  # your application.
+  # the material Icons class.
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
@@ -74,7 +75,7 @@ flutter:
     - assets/icons/
 
   # An image asset can refer to one or more resolution-specific "variants", see
-  # https://flutter.dev/to/asset-variants
+  # https://flutter.dev/to/resolution-aware-images
 
   # For details regarding adding assets from package dependencies, see
   # https://flutter.dev/to/asset-from-package
