@@ -26,6 +26,14 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+
+	<!-- Google sample AdMob app ID for development/testing only.
+	     Replace with the real iOS AdMob App ID before release. -->
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This identifier may be used to deliver and measure relevant advertising.</string>
+
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs access to camera to extract text from photos using OCR.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
