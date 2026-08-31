@@ -1,0 +1,117 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+
+import 'ad_config.dart';
+import 'ad_service.dart';
+
+class AdaptiveBannerAd extends StatefulWidget {
+  const AdaptiveBannerAd({super.key});
+
+  @override
+  State<AdaptiveBannerAd> createState() => _AdaptiveBannerAdState();
+}
+
+class _AdaptiveBannerAdState extends State<AdaptiveBannerAd> {
+  BannerAd? _bannerAd;
+  int? _lastRequestedWidth;
+  bool _isLoading = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (!AdConfig.isSupportedPlatform || _isLoading) return;
+
+    // Keep the ad comfortably sized on tablets while still using an adaptive
+    // banner on phones.
+    final width = math.min(MediaQuery.sizeOf(context).width, 600).truncate();
+    if (width <= 0 || width == _lastRequestedWidth) return;
+
+    _lastRequestedWidth = width;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadBanner(width);
+    });
+  }
+
+  Future<void> _loadBanner(int width) async {
+    final adUnitId = AdConfig.bannerAdUnitId;
+    if (adUnitId == null || adUnitId.isEmpty) return;
+
+    setState(() => _isLoading = true);
+
+    final canRequestAds = await AdService.instance.initialize();
+    if (!mounted) return;
+
+    if (!canRequestAds) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    final size = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(width);
+    if (!mounted) return;
+
+    if (size == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    await _bannerAd?.dispose();
+    _bannerAd = null;
+
+    BannerAd(
+      adUnitId: adUnitId,
+      request: const AdRequest(),
+      size: size,
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          if (!mounted) {
+            ad.dispose();
+            return;
+          }
+          setState(() {
+            _bannerAd = ad as BannerAd;
+            _isLoading = false;
+          });
+        },
+        onAdFailedToLoad: (ad, error) {
+          debugPrint('AdMob banner failed to load: $error');
+          ad.dispose();
+          if (mounted) {
+            setState(() {
+              _bannerAd = null;
+              _isLoading = false;
+            });
+          }
+        },
+      ),
+    ).load();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bannerAd = _bannerAd;
+    if (bannerAd == null) return const SizedBox.shrink();
+
+    return Material(
+      color: Colors.transparent,
+      child: SafeArea(
+        top: false,
+        child: Center(
+          child: SizedBox(
+            width: bannerAd.size.width.toDouble(),
+            height: bannerAd.size.height.toDouble(),
+            child: AdWidget(ad: bannerAd),
+          ),
+        ),
+      ),
+    );
+  }
+}
