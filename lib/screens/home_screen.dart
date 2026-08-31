@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../ads/adaptive_banner_ad.dart';
 import '../providers/tts_provider.dart';
 import '../providers/theme_provider.dart';
 import '../utils/app_theme.dart';
@@ -49,6 +50,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
+            // Fixed adaptive banner: intentionally outside the scrollable TTS
+            // controls so it never covers or sits directly beside Play/Save.
+            const AdaptiveBannerAd(),
           ],
         ),
       ),
