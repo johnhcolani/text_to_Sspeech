@@ -17,6 +17,7 @@ class _AdaptiveBannerAdState extends State<AdaptiveBannerAd> {
   BannerAd? _bannerAd;
   int? _lastRequestedWidth;
   bool _isLoading = false;
+  bool _privacyOptionsRequired = false;
 
   @override
   void didChangeDependencies() {
@@ -43,6 +44,11 @@ class _AdaptiveBannerAdState extends State<AdaptiveBannerAd> {
 
     final canRequestAds = await AdService.instance.initialize();
     if (!mounted) return;
+
+    final privacyRequired =
+        await AdService.instance.isPrivacyOptionsRequired();
+    if (!mounted) return;
+    _privacyOptionsRequired = privacyRequired;
 
     if (!canRequestAds) {
       setState(() => _isLoading = false);
@@ -89,6 +95,23 @@ class _AdaptiveBannerAdState extends State<AdaptiveBannerAd> {
     ).load();
   }
 
+  Future<void> _showPrivacyChoices() async {
+    final error = await AdService.instance.showPrivacyOptionsForm();
+    if (!mounted) return;
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open privacy choices: ${error.message}')),
+      );
+      return;
+    }
+
+    final required = await AdService.instance.isPrivacyOptionsRequired();
+    if (mounted) {
+      setState(() => _privacyOptionsRequired = required);
+    }
+  }
+
   @override
   void dispose() {
     _bannerAd?.dispose();
@@ -98,18 +121,39 @@ class _AdaptiveBannerAdState extends State<AdaptiveBannerAd> {
   @override
   Widget build(BuildContext context) {
     final bannerAd = _bannerAd;
-    if (bannerAd == null) return const SizedBox.shrink();
+
+    if (bannerAd == null && !_privacyOptionsRequired) {
+      return const SizedBox.shrink();
+    }
 
     return Material(
       color: Colors.transparent,
       child: SafeArea(
         top: false,
-        child: Center(
-          child: SizedBox(
-            width: bannerAd.size.width.toDouble(),
-            height: bannerAd.size.height.toDouble(),
-            child: AdWidget(ad: bannerAd),
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_privacyOptionsRequired)
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: TextButton.icon(
+                    onPressed: _showPrivacyChoices,
+                    icon: const Icon(Icons.privacy_tip_outlined, size: 16),
+                    label: const Text('Privacy choices'),
+                  ),
+                ),
+              ),
+            if (bannerAd != null)
+              Center(
+                child: SizedBox(
+                  width: bannerAd.size.width.toDouble(),
+                  height: bannerAd.size.height.toDouble(),
+                  child: AdWidget(ad: bannerAd),
+                ),
+              ),
+          ],
         ),
       ),
     );
